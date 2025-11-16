@@ -1,10 +1,12 @@
-const API_URL = "https://indoor-sim-server.onrender.com/history?sec=1800";
+import Chart from "https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.esm.min.js";
+
+const API_URL = "https://indoor-sim-server.onrender.com/history?sec=3600"; // dernière heure
 
 async function buildScatterBar() {
   try {
     const res = await fetch(API_URL);
     const json = await res.json();
-    const data = json.series; // tableau réel
+    const data = json.series; // tableau de mesures
 
     if (!data || !Array.isArray(data)) {
       console.error("Data API vide ou invalide:", json);
@@ -18,7 +20,7 @@ async function buildScatterBar() {
       data: {
         datasets: [{
           label: "Temp vs Hum",
-          data: data.map(d => ({ x: d.measures.Temp, y: d.measures.rh })),
+          data: data.map(d => ({ x: d.measures.temp, y: d.measures.rh })),
           backgroundColor: "rgba(255,99,132,0.6)"
         }]
       },
@@ -30,7 +32,7 @@ async function buildScatterBar() {
       }
     });
 
-    // Moyenne des gaz pour le bar chart
+    // Moyenne des gaz pour stacked bar
     const avgCO2 = data.reduce((a,d)=>a+d.measures.co2,0)/data.length;
     const avgNO2 = data.reduce((a,d)=>a+d.measures.no2,0)/data.length;
     const avgNH3 = data.reduce((a,d)=>a+d.measures.nh3,0)/data.length;
