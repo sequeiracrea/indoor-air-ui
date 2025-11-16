@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>ScatterBar Insight</title>
+
+  <link rel="stylesheet" href="assets/css/style.css" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <script type="module" src="assets/js/scatterbar.js"></script>
+</head>
+
+<body>
+  <header class="app-header">
+    <h1>ScatterBar — Structure chimique</h1>
+  </header>
+
+  <main class="container row-2">
+    <div class="card flex-2">
+      <h2>Scatter (Temp ↔ Humidité)</h2>
+      <canvas id="mainScatter"></canvas>
+    </div>
+
+    <div class="card flex-1">
+      <h2>Composition de l’instant</h2>
+      <canvas id="stackedBar"></canvas>
+    </div>
+  </main>
+</body>
+</html>
