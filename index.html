@@ -11,6 +11,14 @@
   <!-- Script de la page -->
   <script type="module" src="assets/js/dashboard.js"></script>
 </head>
+<script>
+  const path = location.pathname.split("/").pop();
+  document.querySelectorAll(".top-nav a").forEach(a => {
+    if (a.getAttribute("href") === path) {
+      a.classList.add("active");
+    }
+  });
+</script>
 
 <body>
   <header class="app-header">
