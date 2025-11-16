@@ -1,1 +1,43 @@
+body {
+    margin: 0;
+    font-family: Inter, Arial, sans-serif;
+    background: #f2f4f8;
+    color: #222;
+}
+
+header {
+    background: #ffffff;
+    padding: 20px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+h1 {
+    margin: 0;
+    font-size: 28px;
+}
+
+.home-container {
+    padding: 40px;
+}
+
+.home-nav {
+    display: grid;
+    gap: 16px;
+    max-width: 400px;
+}
+
+.home-nav a {
+    display: block;
+    padding: 16px;
+    background: white;
+    border-radius: 10px;
+    text-decoration: none;
+    color: #222;
+    font-weight: 600;
+    transition: 0.2s;
+}
+
+.home-nav a:hover {
+    background: #e8eef7;
+}
 
