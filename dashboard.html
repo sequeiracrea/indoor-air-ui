@@ -1,46 +1,29 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>Dashboard – Indoor AI</title>
-    <link rel="stylesheet" href="assets/css/style.css">
-    <script type="module" src="assets/js/dashboard.js"></script>
-    <!-- Chart.js core -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <!-- Chart Matrix plugin (pour heatmap/matrix) -->
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.0/dist/chartjs-chart-matrix.min.js"></script>
-    <!-- Optional: chartjs-plugin-annotation for event marks -->
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.2.0/dist/chartjs-plugin-annotation.bundle.min.js"></script>
-    <!-- Optional: radial gauge plugin (or implement gauge with doughnut) -->
-    <!-- We will implement GAQI donut with native Chart.js doughnut -->
+  <meta charset="utf-8">
+  <title>Indoor Air - Dashboard</title>
+  <link rel="stylesheet" href="assets/css/style.css">
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script type="module" src="assets/js/dashboard.js"></script>
 </head>
-
 <body>
-
-<header>
-    <h1>Dashboard Temps Réel</h1>
-</header>
-
-<main>
-
-    <section class="cards-grid">
-        <div class="card" id="gaqi-card">
-            <h3>GAQI</h3>
-            <div class="big-value" id="gaqi-value">--</div>
-        </div>
-
-        <div class="card"><h3>CO₂</h3><div id="co2">--</div></div>
-        <div class="card"><h3>CO</h3><div id="co">--</div></div>
-        <div class="card"><h3>NO₂</h3><div id="no2">--</div></div>
-        <div class="card"><h3>NH₃</h3><div id="nh3">--</div></div>
-
-        <div class="card"><h3>Température</h3><div id="temp">--</div></div>
-        <div class="card"><h3>Humidité</h3><div id="humidity">--</div></div>
-        <div class="card"><h3>Pression</h3><div id="pressure">--</div></div>
+  <header><h1>Dashboard</h1></header>
+  <main>
+    <section class="row">
+      <div class="card">
+        <canvas id="gaqiDonut" width="300" height="300"></canvas>
+        <div id="gaqiLabel"></div>
+      </div>
+      <div class="card" id="subbars">
+        <canvas id="subbarsChart" width="300" height="200"></canvas>
+      </div>
     </section>
 
-</main>
-
+    <section class="grid-cards" id="measuresGrid">
+      <!-- small cards injected by JS -->
+    </section>
+  </main>
 </body>
 </html>
-
