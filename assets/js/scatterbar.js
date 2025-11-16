@@ -1,33 +1,46 @@
-import { fetchScatterBar } from './api.js';
+const API_URL = "https://indoor-sim-server.onrender.com/data";
 
-const ctx = document.getElementById('mainScatter').getContext('2d');
-const sideCtx = document.getElementById('stackedBar').getContext('2d');
-let mainChart, sideChart;
+async function buildScatterBar() {
+  const data = await (await fetch(API_URL)).json();
 
-function init() {
-  mainChart = new Chart(ctx, { type:'scatter', data:{datasets:[{data:[]}]} , options:{
-    onClick: (evt, items) => {
-      if (!items.length) return;
-      const it = items[0];
-      const point = mainChart.data.datasets[it.datasetIndex].data[it.index];
-      updateSideBar(point);
+  const scatterCtx = document.getElementById("mainScatter").getContext("2d");
+  new Chart(scatterCtx, {
+    type: "scatter",
+    data: {
+      datasets: [
+        {
+          label: "Temp vs Hum",
+          data: data.map(d => ({x: d.Temp, y: d.Hum})),
+          backgroundColor: "rgba(255,99,132,0.6)"
+        }
+      ]
+    },
+    options: {
+      scales: {
+        x: { title: { display: true, text: "Temp (°C)" } },
+        y: { title: { display: true, text: "Hum (%)" } }
+      }
     }
-  }});
-  sideChart = new Chart(sideCtx, { type:'bar', data: {labels:['CO2','NO2','NH3','CO'], datasets:[{ data:[], backgroundColor:['#06B6D4','#F59F42','#A855F7','#3B82F6'] }]}, options:{ indexAxis:'y', scales:{ x:{ max: 100 }}}});
+  });
+
+  // Stacked bar exemple : Moyenne de CO2, NO2, NH3
+  const avgCO2 = data.reduce((a,d)=>a+d.CO2,0)/data.length;
+  const avgNO2 = data.reduce((a,d)=>a+d.NO2,0)/data.length;
+  const avgNH3 = data.reduce((a,d)=>a+d.NH3,0)/data.length;
+
+  const barCtx = document.getElementById("stackedBar").getContext("2d");
+  new Chart(barCtx, {
+    type: "bar",
+    data: {
+      labels: ["Gaz moyens"],
+      datasets: [
+        { label: "CO2", data: [avgCO2], backgroundColor: "#3B82F6" },
+        { label: "NO2", data: [avgNO2], backgroundColor: "#F59E0B" },
+        { label: "NH3", data: [avgNH3], backgroundColor: "#10B981" }
+      ]
+    },
+    options: { responsive: true, plugins: { legend: { position: "top" } } }
+  });
 }
 
-function updateSideBar(point) {
-  const total = (point.co2||0)+(point.no2||0)+(point.nh3||0)+(point.co||0);
-  const arr = [(point.co2||0)/total*100, (point.no2||0)/total*100, (point.nh3||0)/total*100, (point.co||0)/total*100];
-  sideChart.data.datasets[0].data = arr;
-  sideChart.update();
-}
-
-async function load() {
-  const payload = await fetchScatterBar('temp','rh',3600,60);
-  const pts = payload.points.map(p => ({ x:p.x, y:p.y, co2:p.co2, no2:p.no2, nh3:p.nh3, co:p.co }));
-  mainChart.data.datasets[0].data = pts;
-  mainChart.update();
-}
-
-window.addEventListener('load', ()=>{ init(); load(); });
+window.addEventListener("load", buildScatterBar);
