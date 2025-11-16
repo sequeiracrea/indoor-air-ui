@@ -1,7 +1,9 @@
 const API_URL = "https://indoor-sim-server.onrender.com/data";
 
 async function buildScatterBar() {
-  const data = await (await fetch(API_URL)).json();
+  const res = await fetch(API_URL);
+  const json = await res.json();
+  const data = json.data; // <- important si l'API renvoie { data: [...] }
 
   const scatterCtx = document.getElementById("mainScatter").getContext("2d");
   new Chart(scatterCtx, {
@@ -10,7 +12,7 @@ async function buildScatterBar() {
       datasets: [
         {
           label: "Temp vs Hum",
-          data: data.map(d => ({x: d.Temp, y: d.Hum})),
+          data: data.map(d => ({ x: d.Temp, y: d.Hum })),
           backgroundColor: "rgba(255,99,132,0.6)"
         }
       ]
@@ -23,7 +25,6 @@ async function buildScatterBar() {
     }
   });
 
-  // Stacked bar exemple : Moyenne de CO2, NO2, NH3
   const avgCO2 = data.reduce((a,d)=>a+d.CO2,0)/data.length;
   const avgNO2 = data.reduce((a,d)=>a+d.NO2,0)/data.length;
   const avgNH3 = data.reduce((a,d)=>a+d.NH3,0)/data.length;
