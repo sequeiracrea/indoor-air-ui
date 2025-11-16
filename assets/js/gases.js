@@ -1,6 +1,5 @@
-const API_URL = "https://indoor-sim-server.onrender.com/history?sec=3600";
-
 async function buildGases() {
+  const API_URL = "https://indoor-sim-server.onrender.com/history?sec=3600";
   try {
     const res = await fetch(API_URL);
     const json = await res.json();
