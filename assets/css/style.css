@@ -92,3 +92,36 @@ body {
 .corr-val {
   font-weight: bold;
 }
+
+/* NAV */
+
+.top-nav {
+  display: flex;
+  justify-content: center;
+  gap: 18px;
+  padding: 12px;
+  background: #ffffffd9;
+  border-bottom: 1px solid #ddd;
+  backdrop-filter: blur(8px);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.top-nav a {
+  text-decoration: none;
+  font-size: 0.95rem;
+  color: #333;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.top-nav a:hover {
+  background: #eee;
+}
+
+.top-nav a.active {
+  font-weight: bold;
+  background: #222;
+  color: white;
+}
