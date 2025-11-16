@@ -1,36 +1,38 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>Indoor Air Intelligence – Accueil</title>
-    <link rel="stylesheet" href="assets/css/style.css">
-    <!-- Chart.js core -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <!-- Chart Matrix plugin (pour heatmap/matrix) -->
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.0/dist/chartjs-chart-matrix.min.js"></script>
-    <!-- Optional: chartjs-plugin-annotation for event marks -->
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.2.0/dist/chartjs-plugin-annotation.bundle.min.js"></script>
-    <!-- Optional: radial gauge plugin (or implement gauge with doughnut) -->
-    <!-- We will implement GAQI donut with native Chart.js doughnut -->
+  <meta charset="UTF-8" />
+  <title>Indoor Air – Dashboard</title>
+  <link rel="stylesheet" href="assets/css/style.css" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- Script de la page -->
+  <script type="module" src="assets/js/dashboard.js"></script>
 </head>
 
 <body>
+  <header class="app-header">
+    <h1>Dashboard</h1>
+  </header>
 
-<header>
-    <h1>Indoor Air Intelligence</h1>
-</header>
+  <main class="container">
+    <section class="row">
+      <div class="card center">
+        <h2>GAQI</h2>
+        <canvas id="gaqiDonut" width="260" height="260"></canvas>
+        <div id="gaqiLabel" class="value-large"></div>
+      </div>
 
-<main class="home-container">
+      <div class="card">
+        <h2>Composants GAQI</h2>
+        <canvas id="subbarsChart" width="300" height="200"></canvas>
+      </div>
+    </section>
 
-    <nav class="home-nav">
-        <a href="dashboard.html">Dashboard temps réel</a>
-        <a href="indices.html">Indices & Interprétation</a>
-        <a href="relationships.html">Relationship Grid</a>
-        <a href="timeline.html">Évolution & Timeline</a>
-    </nav>
-
-</main>
-
+    <h2>Mesures actuelles</h2>
+    <section class="grid-cards" id="measuresGrid"></section>
+  </main>
 </body>
 </html>
-
