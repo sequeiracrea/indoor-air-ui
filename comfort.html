@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <title>Confort — TCI</title>
+
+  <link rel="stylesheet" href="assets/css/style.css" />
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <script type="module" src="assets/js/comfort.js"></script>
+</head>
+
+<body>
+  <header class="app-header">
+    <h1>Thermal Comfort Index (TCI)</h1>
+  </header>
+
+  <main class="container">
+    <div class="card center">
+      <canvas id="radarChart" width="320" height="320"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>Interprétation</h2>
+      <p>Plus la surface du radar est grande, meilleur est le confort thermique.</p>
+      <ul>
+        <li>🌡 Température idéale : ~22°C</li>
+        <li>💧 Humidité idéale : 45–55%</li>
+        <li>🔽 Pression : écart minimal autour de 1013 hPa</li>
+      </ul>
+    </div>
+  </main>
+</body>
+</html>
