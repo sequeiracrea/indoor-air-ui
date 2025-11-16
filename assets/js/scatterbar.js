@@ -5,7 +5,7 @@ async function buildScatterBar() {
     const res = await fetch(API_URL);
     const json = await res.json();
 
-    const data = Array.isArray(json) ? json : json.data;
+    const data = Array.isArray(json) ? json : [json.measures];
     if (!data || !Array.isArray(data)) {
       console.error("Data API vide ou invalide:", json);
       return;
@@ -31,9 +31,9 @@ async function buildScatterBar() {
       }
     });
 
-    const avgCO2 = data.reduce((a,d)=>a+d.CO2,0)/data.length;
-    const avgNO2 = data.reduce((a,d)=>a+d.NO2,0)/data.length;
-    const avgNH3 = data.reduce((a,d)=>a+d.NH3,0)/data.length;
+    const avgCO2 = data.reduce((a,d)=>a.CO2+a,0)/data.length;
+    const avgNO2 = data.reduce((a,d)=>a.NO2+a,0)/data.length;
+    const avgNH3 = data.reduce((a,d)=>a.NH3+a,0)/data.length;
 
     const barCtx = document.getElementById("stackedBar").getContext("2d");
     new Chart(barCtx, {
