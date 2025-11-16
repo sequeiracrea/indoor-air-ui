@@ -1,12 +1,9 @@
-import Chart from "https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.esm.min.js";
-
-const API_URL = "https://indoor-sim-server.onrender.com/history?sec=3600"; // dernière heure
-
 async function buildScatterBar() {
+  const API_URL = "https://indoor-sim-server.onrender.com/history?sec=3600";
   try {
     const res = await fetch(API_URL);
     const json = await res.json();
-    const data = json.series; // tableau de mesures
+    const data = json.series;
 
     if (!data || !Array.isArray(data)) {
       console.error("Data API vide ou invalide:", json);
