@@ -1,38 +1,37 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>Relationship Grid – Indoor AI</title>
-    <link rel="stylesheet" href="assets/css/style.css">
-    <script type="module" src="assets/js/relationships.js"></script>
-    <!-- Chart.js core -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <!-- Chart Matrix plugin (pour heatmap/matrix) -->
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.0/dist/chartjs-chart-matrix.min.js"></script>
-    <!-- Optional: chartjs-plugin-annotation for event marks -->
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@2.2.0/dist/chartjs-plugin-annotation.bundle.min.js"></script>
-    <!-- Optional: radial gauge plugin (or implement gauge with doughnut) -->
-    <!-- We will implement GAQI donut with native Chart.js doughnut -->
+  <meta charset="UTF-8" />
+  <title>Matrice de corrélations — Relationship Grid</title>
+
+  <link rel="stylesheet" href="assets/css/style.css" />
+
+  <!-- Chart.js (for mini charts if needed later) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <script type="module" src="assets/js/relationships.js"></script>
 </head>
 
 <body>
-
-<header>
+  <header class="app-header">
     <h1>Relationship Grid</h1>
-</header>
+  </header>
 
-<main>
+  <main class="container">
+    <div id="matrix-container" class="matrix"></div>
 
-    <section id="matrix-container" class="matrix-grid"></section>
-
-    <section id="detail-view">
-        <h2 id="detail-title">Sélectionnez une relation</h2>
-        <canvas id="detail-scatter"></canvas>
-        <canvas id="detail-bars"></canvas>
-    </section>
-
-</main>
-
+    <div class="card">
+      <h2>Légende</h2>
+      <p>
+        Cette matrice montre la corrélation entre chaque paire de variables.<br>
+        Cliquez sur une cellule pour ouvrir un scatter détaillé.
+      </p>
+      <ul>
+        <li>🔵 Corrélation forte positive</li>
+        <li>🟣 Corrélation forte négative</li>
+        <li>⚪ Faible corrélation</li>
+      </ul>
+    </div>
+  </main>
 </body>
 </html>
-
