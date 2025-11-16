@@ -1,33 +1,41 @@
-const API_URL = "https://indoor-sim-server.onrender.com/data";
+const API_URL = "https://indoor-sim-server.onrender.com/history?sec=3600";
 
-function getParams() {
-  const params = new URLSearchParams(window.location.search);
-  return [params.get("x") || "CO2", params.get("y") || "NO2"];
-}
+async function buildGases() {
+  try {
+    const res = await fetch(API_URL);
+    const json = await res.json();
+    const data = json.series;
 
-async function buildScatter() {
-  const data = await (await fetch(API_URL)).json();
-  const [xVar, yVar] = getParams();
-
-  const ctx = document.getElementById("gasesScatter").getContext("2d");
-  new Chart(ctx, {
-    type: "scatter",
-    data: {
-      datasets: [{
-        label: `${xVar} vs ${yVar}`,
-        data: data.map(d => ({x: d[xVar], y: d[yVar]})),
-        backgroundColor: "rgba(75,192,192,0.6)"
-      }]
-    },
-    options: {
-      responsive: true,
-      plugins: { legend: { display: true } },
-      scales: {
-        x: { title: { display: true, text: xVar } },
-        y: { title: { display: true, text: yVar } }
-      }
+    if (!data || !Array.isArray(data)) {
+      console.error("Data API vide ou invalide:", json);
+      return;
     }
-  });
+
+    const gases = ["co","co2","no2","nh3"];
+    gases.forEach(g => {
+      const ctx = document.getElementById(`${g}Chart`).getContext("2d");
+      new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: data.map(d => d.timestamp),
+          datasets: [{
+            label: g.toUpperCase(),
+            data: data.map(d => d.measures[g]),
+            borderColor: "#3B82F6",
+            backgroundColor: "rgba(59,130,246,0.2)",
+            tension: 0.3
+          }]
+        },
+        options: {
+          responsive: true,
+          scales: { x: { display: false }, y: { beginAtZero: true } }
+        }
+      });
+    });
+
+  } catch(e) {
+    console.error("Erreur gases.js:", e);
+  }
 }
 
-window.addEventListener("load", buildScatter);
+window.addEventListener("load", buildGases);
