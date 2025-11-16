@@ -1,43 +1,94 @@
 body {
-    margin: 0;
-    font-family: Inter, Arial, sans-serif;
-    background: #f2f4f8;
-    color: #222;
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: #f7f9fb;
+  color: #222;
 }
 
-header {
-    background: #ffffff;
-    padding: 20px;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+.app-header {
+  padding: 20px;
+  text-align: center;
+  background: white;
+  border-bottom: 1px solid #ddd;
 }
 
-h1 {
-    margin: 0;
-    font-size: 28px;
+.container {
+  padding: 20px;
+  max-width: 1200px;
+  margin: auto;
 }
 
-.home-container {
-    padding: 40px;
+.row {
+  display: flex;
+  gap: 20px;
 }
 
-.home-nav {
-    display: grid;
-    gap: 16px;
-    max-width: 400px;
+.row-2 {
+  display: flex;
+  gap: 20px;
 }
 
-.home-nav a {
-    display: block;
-    padding: 16px;
-    background: white;
-    border-radius: 10px;
-    text-decoration: none;
-    color: #222;
-    font-weight: 600;
-    transition: 0.2s;
+.flex-1 { flex: 1; }
+.flex-2 { flex: 2; }
+
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  margin-bottom: 20px;
 }
 
-.home-nav a:hover {
-    background: #e8eef7;
+.center {
+  text-align: center;
 }
 
+.value-large {
+  margin-top: 10px;
+  font-size: 2rem;
+  font-weight: bold;
+}
+
+.grid-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 15px;
+}
+
+.small-card {
+  background: white;
+  padding: 12px;
+  border-radius: 10px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+  text-align: center;
+}
+
+.matrix {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.matrix-row {
+  display: contents;
+}
+
+.matrix-cell {
+  height: 60px;
+  border-radius: 6px;
+  background: #e5e7eb;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: .8rem;
+  cursor: pointer;
+}
+
+.matrix-cell.mirror {
+  background: transparent;
+  cursor: default;
+}
+
+.corr-val {
+  font-weight: bold;
+}
