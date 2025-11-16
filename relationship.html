@@ -6,32 +6,38 @@
 
   <link rel="stylesheet" href="assets/css/style.css" />
 
-  <!-- Chart.js (for mini charts if needed later) -->
+  <!-- Chart.js (UMD pour mini-charts si besoin) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
-  <script type="module" src="assets/js/relationships.js"></script>
+  <script src="assets/js/relationships.js"></script>
 </head>
 
 <body>
   <header class="app-header">
     <h1>Relationship Grid</h1>
+    <nav>
+      <a href="index.html">Dashboard</a> |
+      <a href="scatterbar.html">ScatterBar</a> |
+      <a href="gases.html">Gases</a>
+    </nav>
   </header>
 
   <main class="container">
-    <div id="matrix-container" class="matrix"></div>
+    <section class="matrix-card">
+      <div id="matrix-container" class="matrix"></div>
+    </section>
 
-    <div class="card">
+    <section class="card legend">
       <h2>Légende</h2>
       <p>
         Cette matrice montre la corrélation entre chaque paire de variables.<br>
         Cliquez sur une cellule pour ouvrir un scatter détaillé.
       </p>
       <ul>
-        <li>🔵 Corrélation forte positive</li>
-        <li>🟣 Corrélation forte négative</li>
-        <li>⚪ Faible corrélation</li>
+        <li>🔵 Corrélation forte positive (r > 0.6)</li>
+        <li>🟣 Corrélation forte négative (r < -0.6)</li>
+        <li>⚪ Corrélation faible (r entre -0.3 et 0.3)</li>
       </ul>
-    </div>
+    </section>
   </main>
 </body>
 </html>
