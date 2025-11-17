@@ -1,7 +1,6 @@
 /* assets/js/gases.js */
+
 let scatterChart = null;
-let histXChart = null;
-let histYChart = null;
 
 /* ---------- LOAD LINE CHARTS ---------- */
 async function loadCharts() {
@@ -19,10 +18,14 @@ async function loadCharts() {
 function makeLineChart(id, labels, values, label) {
   const ctx = document.getElementById(id);
   if (!ctx) return;
-  new Chart(ctx, { type: "line", data: { labels, datasets: [{ label, data: values, borderWidth: 2, fill: false }] }, options: { responsive: true, maintainAspectRatio: false }});
+  new Chart(ctx, {
+    type: "line",
+    data: { labels, datasets: [{ label, data: values, borderWidth: 2, fill: false }] },
+    options: { responsive: true, maintainAspectRatio: false }
+  });
 }
 
-/* ---------- SCATTER + HISTOS ---------- */
+/* ---------- SCATTER ---------- */
 async function loadScatter(x, y) {
   const history = await IndoorAPI.fetchHistory(1800);
   const series = history.series;
@@ -30,37 +33,29 @@ async function loadScatter(x, y) {
 
   const points = series.map(d => ({ x: d.measures[x], y: d.measures[y] }));
 
-  // Histogrammes
-  const bins = 20;
-  const xVals = points.map(p => p.x), yVals = points.map(p => p.y);
-  const xMin = Math.min(...xVals), xMax = Math.max(...xVals);
-  const yMin = Math.min(...yVals), yMax = Math.max(...yVals);
-  const histX = new Array(bins).fill(0), histY = new Array(bins).fill(0);
+  if (scatterChart) scatterChart.destroy();
 
-  xVals.forEach(v => histX[Math.floor(((v - xMin)/(xMax - xMin))*(bins-1))]++);
-  yVals.forEach(v => histY[Math.floor(((v - yMin)/(yMax - yMin))*(bins-1))]++);
-
-  // Détruire charts existants
-  [scatterChart, histXChart, histYChart].forEach(c => c && c.destroy());
-
-  // Scatter
   scatterChart = new Chart(document.getElementById("gasesScatter"), {
     type: "scatter",
-    data: { datasets: [{ label: `${x} vs ${y}`, data: points, pointRadius: 4, backgroundColor: "#3B82F6" }] },
-    options: { responsive: true, maintainAspectRatio: false, scales: { x: { title: { display: true, text: x.toUpperCase() } }, y: { title: { display: true, text: y.toUpperCase() } } } }
-  });
-
-  // Histogrammes
-  histXChart = new Chart(document.getElementById("histX"), {
-    type: "bar",
-    data: { labels: Array.from({length: bins}, (_, i) => (xMin + i*(xMax-xMin)/bins).toFixed(2)), datasets: [{ data: histX, backgroundColor: "#3B82F6" }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-  });
-  histYChart = new Chart(document.getElementById("histY"), {
-    type: "bar",
-    indexAxis: 'y',
-    data: { labels: Array.from({length: bins}, (_, i) => (yMin + i*(yMax-yMin)/bins).toFixed(2)), datasets: [{ data: histY, backgroundColor: "#ef4444" }] },
-    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+    data: {
+      datasets: [{
+        label: `${x.toUpperCase()} vs ${y.toUpperCase()}`,
+        data: points,
+        pointRadius: 4,
+        backgroundColor: points.map((_,i) => `rgba(30,100,220,${0.2+0.8*i/points.length})`)
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: { callbacks: { label: item => `${x.toUpperCase()}: ${item.raw.x}, ${y.toUpperCase()}: ${item.raw.y}` } }
+      },
+      scales: {
+        x: { title: { display:true, text:x.toUpperCase() } },
+        y: { title: { display:true, text:y.toUpperCase() } }
+      }
+    }
   });
 
   updateScatterDetails(x, y, series);
@@ -85,16 +80,16 @@ function computeCorrelation(a,b) {
   const ma=a.reduce((s,x)=>s+x,0)/n;
   const mb=b.reduce((s,x)=>s+x,0)/n;
   let num=0,da2=0,db2=0;
-  for(let i=0;i<n;i++){const da=a[i]-ma,db=b[i]-mb;num+=da*db;da2+=da*da;db2+=db*db;}
+  for(let i=0;i<n;i++){const da=a[i]-ma,db=b[i]-mb; num+=da*db; da2+=da*da; db2+=db*db;}
   const den=Math.sqrt(da2*db2); return den===0?0:num/den;
 }
 
-/* ---------- SETUP SELECT ---------- */
+/* ---------- SELECTS ---------- */
 function setupScatterSelector() {
   const xSelect = document.getElementById("scatterX");
   const ySelect = document.getElementById("scatterY");
   const btn = document.getElementById("btn-update-scatter");
-  if(!xSelect || !ySelect || !btn) return;
+  if(!xSelect||!ySelect||!btn) return;
 
   const reload = () => loadScatter(xSelect.value, ySelect.value);
   xSelect.addEventListener("change", reload);
@@ -106,8 +101,13 @@ function setupScatterSelector() {
 window.addEventListener("load", async () => {
   setupScatterSelector();
   await loadCharts();
-  await loadScatter(
-    new URLSearchParams(window.location.search).get("x") || "co2",
-    new URLSearchParams(window.location.search).get("y") || "co"
-  );
+
+  const params = new URLSearchParams(window.location.search);
+  const x = params.get("x") || "co2";
+  const y = params.get("y") || "co";
+
+  document.getElementById("scatterX").value = x;
+  document.getElementById("scatterY").value = y;
+
+  await loadScatter(x, y);
 });
