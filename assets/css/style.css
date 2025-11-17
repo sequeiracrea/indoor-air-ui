@@ -77,8 +77,8 @@ body{
 
 canvas{width:100% !important; height:auto !important; display:block}
 
-/* matrix grid */
-.matrix {
+/* OLD matrix grid */
+/*.matrix {
   display:grid;
   grid-template-columns: repeat(7, 1fr);
   gap:6px;
@@ -98,10 +98,102 @@ canvas{width:100% !important; height:auto !important; display:block}
 }
 .matrix-cell.mirror{background:transparent; cursor:default; color:#9aa4b2}
 .mini-histo{font-size:0.8rem; color:var(--muted)}
+*/
 
 /* legend card */
 .legend ul{padding-left:18px}
 .legend li{margin:6px 0}
+/******************************************************
+ * RELATIONSHIP GRID
+ ******************************************************/
+
+.matrix-card {
+  margin-top: 20px;
+}
+
+.matrix {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(95px, 1fr));
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.matrix-cell {
+  height: 95px;
+  border-radius: 10px;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 6px;
+  text-align: center;
+
+  opacity: 0;
+  animation: fadeInScale 0.4s ease forwards;
+
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.matrix-cell:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 18px rgba(0,0,0,0.18);
+  cursor: pointer;
+}
+
+@keyframes fadeInScale {
+  from { opacity: 0; transform: scale(0.8);}
+  to   { opacity: 1; transform: scale(1);}
+}
+
+.corr-dot {
+  border-radius: 50%;
+}
+
+.corr-pos {
+  background: linear-gradient(145deg, #4c7df0, #315cca);
+}
+
+.corr-neg {
+  background: linear-gradient(145deg, #b34cff, #8830c7);
+}
+
+.corr-neutral {
+  background: linear-gradient(145deg, #dcdcdc, #bfbfbf);
+  color: #222;
+}
+
+.matrix-cell.diagonal {
+  background: #222;
+  color: #fff;
+  font-size: 0.75rem;
+}
+
+/* MULTI SELECT */
+.select-multi {
+  width: 100%;
+  height: 140px;
+  padding: 8px;
+  font-size: 1rem;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+.btn {
+  margin-top: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  background: #3B82F6;
+  color: #fff;
+  cursor: pointer;
+  border: none;
+}
+
+.btn:hover {
+  background: #2563eb;
+}
+
+
 
 /* responsive */
 @media (max-width:900px){
