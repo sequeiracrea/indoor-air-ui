@@ -148,6 +148,17 @@ canvas{width:100% !important; height:auto !important; display:block}
  * RELATIONSHIP GRID V2
  ******************************************************/
 
+/* ensure grid aligns to N columns automatically */
+#matrix-container { width: 100%; }
+/* cells look */
+.matrix-cell { transition: transform .12s ease, box-shadow .12s ease; }
+.matrix-cell.hovered, .matrix-cell:hover { transform: scale(1.03); box-shadow: 0 6px 18px rgba(0,0,0,0.12); }
+/* diagonal style */
+.matrix-cell.diagonal { background:#0f172a; color:#fff; font-weight:700; }
+/* hover highlight row/col (class applied by JS) */
+.matrix-cell.hovered { outline: 2px solid rgba(245,158,11,0.9); }
+
+
 /* Matrix grid */
 .matrix {
   display: grid;
@@ -167,17 +178,17 @@ canvas{width:100% !important; height:auto !important; display:block}
   transition: background 0.2s, outline 0.2s;
 }
 
-/* Diagonale (variable auto) */
+/* Diagonale (variable auto) 
 .matrix-cell.diagonal {
-  background-color: #f3f4f6; /* gris clair */
+  background-color: #f3f4f6; 
   font-weight: bold;
-}
+}*/
 
-/* Hover ligne/colonne */
+/* Hover ligne/colonne
 .matrix-cell.hovered {
   outline: 2px solid #f59e0b;
   background-color: rgba(245, 158, 11, 0.2);
-}
+} */
 
 
 
