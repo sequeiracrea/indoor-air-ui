@@ -2,33 +2,46 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Gases – Scatter</title>
-
+  <title>Gases – Scatter/Lines</title>
   <link rel="stylesheet" href="assets/css/style.css" />
-
-  <!-- Chart.js UMD -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="assets/js/gases.js"></script>
 </head>
 
 <body>
   <header class="app-header">
-    <h1>CO₂, NO₂, NH₃, CO — Scatter & Line Charts</h1>
-    <nav>
-      <a href="index.html">Dashboard</a> |
-      <a href="scatterbar.html">ScatterBar</a> |
-      <a href="relationship.html">Relationships</a>
-    </nav>
+    <h1>Gases — séries</h1>
   </header>
 
+  <nav class="top-nav">
+    <a href="index.html">Dashboard</a>
+    <a href="timeline.html">Timeline</a>
+    <a href="gases.html" class="active">Gases</a>
+    <a href="scatterbar.html">ScatterBar</a>
+    <a href="comfort.html">Confort</a>
+    <a href="events.html">Stabilité</a>
+    <a href="relationships.html">Relations</a>
+  </nav>
+
   <main class="container">
-    <section class="card">
-      <h2>Scatter / Line pour chaque gaz</h2>
+    <div class="card">
+      <h3>CO</h3>
       <canvas id="coChart"></canvas>
+    </div>
+    <div class="card">
+      <h3>CO₂</h3>
       <canvas id="co2Chart"></canvas>
+    </div>
+    <div class="card">
+      <h3>NO₂</h3>
       <canvas id="no2Chart"></canvas>
+    </div>
+    <div class="card">
+      <h3>NH₃</h3>
       <canvas id="nh3Chart"></canvas>
-    </section>
+    </div>
   </main>
+
+<script src="assets/js/api.js"></script>
+<script src="assets/js/gases.js"></script>
 </body>
 </html>
