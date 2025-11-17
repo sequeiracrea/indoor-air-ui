@@ -18,6 +18,11 @@ async function loadCharts() {
   makeLineChart("nh3Chart", labels, data.map(d => d.measures.nh3), "NH₃ (ppm)");
 }
 
+// Afficher la carte scatter si elle existe
+const scatterCard = document.getElementById("scatterCard");
+if (scatterCard) scatterCard.style.display = "block";
+
+
 /* Create a Chart.js line (corrigé) */
 function makeLineChart(canvasId, labels, values, label) {
   const canvas = document.getElementById(canvasId);
