@@ -57,6 +57,17 @@ body{
   margin-bottom:18px;
 }
 
+.card.chart-card {
+  height: 260px;   /* ou 280px, selon ton design */
+  position: relative;
+}
+
+.card.chart-card canvas {
+  position: absolute;
+  inset: 0;
+}
+
+
 .row{display:flex;gap:18px;align-items:flex-start}
 .row .card{flex:1}
 
