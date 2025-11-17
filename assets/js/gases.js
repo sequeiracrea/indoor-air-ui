@@ -164,88 +164,106 @@ async function loadScatterFromQuery() {
 }
 
 
-/* -------- SCATTER AVEC LÉGENDE DYNAMIQUE ET RELOAD -------- */
+/* -------- SCATTER AVEC HISTOGRAMMES MARGIN, LEGENDES ET RELOAD -------- */
+
+let scatterChart = null;
+let histXChart = null;
+let histYChart = null;
+
 async function loadScatterFromQuery() {
   const params = new URLSearchParams(window.location.search);
-  let x = params.get("x") || "co2";
-  let y = params.get("y") || "co";
+  const x = params.get("x") || "co2";
+  const y = params.get("y") || "co";
 
   const titleEl = document.getElementById("scatterTitle");
-  if(titleEl) titleEl.textContent = `Scatter : ${x.toUpperCase()} vs ${y.toUpperCase()}`;
+  if (titleEl) titleEl.textContent = `Scatter : ${x.toUpperCase()} vs ${y.toUpperCase()}`;
 
   const history = await IndoorAPI.fetchHistory(1800);
   const data = history.series;
   if (!data || data.length === 0) return;
 
-  // Préparer les points et densité
   const points = data.map(d => ({ x: d.measures[x], y: d.measures[y] }));
-  const maxDistance = 0.05 * (Math.max(...points.map(p => p.x)) - Math.min(...points.map(p => p.x)));
-  const densities = points.map(p => 
-    points.filter(q => Math.abs(q.x - p.x) < maxDistance && Math.abs(q.y - p.y) < maxDistance).length
-  );
-  const maxDensity = Math.max(...densities);
 
-  const colors = densities.map((d, i) => {
-    const intensity = Math.min(1, d / maxDensity);
-    const r = Math.floor(255 * intensity * 0.6 + 200 * (i / points.length) * 0.4); // rouge
-    const g = Math.floor(100 * (1 - intensity));
-    const b = Math.floor(255 * (1 - intensity) * 0.8); // bleu
-    return `rgb(${r},${g},${b})`;
+  // --- Calcul histogrammes ---
+  const bins = 20; // nombre de bins
+  const xValues = points.map(p => p.x);
+  const yValues = points.map(p => p.y);
+  const histX = new Array(bins).fill(0);
+  const histY = new Array(bins).fill(0);
+  const xMin = Math.min(...xValues), xMax = Math.max(...xValues);
+  const yMin = Math.min(...yValues), yMax = Math.max(...yValues);
+
+  xValues.forEach(v => {
+    const idx = Math.floor(((v - xMin) / (xMax - xMin)) * (bins - 1));
+    histX[idx]++;
+  });
+  yValues.forEach(v => {
+    const idx = Math.floor(((v - yMin) / (yMax - yMin)) * (bins - 1));
+    histY[idx]++;
   });
 
-  const ctx = document.getElementById("gasesScatter");
-  if (!ctx) return;
+  // --- Détruire chart existant ---
+  if (scatterChart) scatterChart.destroy();
+  if (histXChart) histXChart.destroy();
+  if (histYChart) histYChart.destroy();
 
-  // Détruire chart précédent si présent
-  if (ctx.chartInstance) ctx.chartInstance.destroy();
+  const ctxScatter = document.getElementById("gasesScatter");
+  const ctxHistX = document.getElementById("histX");
+  const ctxHistY = document.getElementById("histY");
 
-  ctx.chartInstance = new Chart(ctx, {
+  // --- Scatter principal ---
+  scatterChart = new Chart(ctxScatter, {
     type: "scatter",
     data: {
-      datasets: [
-        {
-          label: `${x.toUpperCase()} vs ${y.toUpperCase()}`,
-          data: points,
-          pointBackgroundColor: colors,
-          pointBorderColor: "#333",
-          pointRadius: 5,
-          showLine: false
-        }
-      ]
+      datasets: [{
+        label: `${x.toUpperCase()} vs ${y.toUpperCase()}`,
+        data: points,
+        pointRadius: 4,
+        pointBackgroundColor: "#3B82F6",
+        pointBorderColor: "#0f172a"
+      }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: (item) => `${x.toUpperCase()}: ${item.raw.x} — ${y.toUpperCase()}: ${item.raw.y}`
-          }
-        },
-        legend: {
-          display: true,
-          labels: {
-            generateLabels: (chart) => [
-              { text: `Variable X: ${x.toUpperCase()}`, fillStyle: "blue" },
-              { text: `Variable Y: ${y.toUpperCase()}`, fillStyle: "red" },
-              { text: "Intensité = densité locale", fillStyle: "grey" }
-            ]
-          }
-        }
-      },
       scales: {
         x: { title: { display: true, text: x.toUpperCase() } },
         y: { title: { display: true, text: y.toUpperCase() } }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (item) => `${x.toUpperCase()}: ${item.raw.x}, ${y.toUpperCase()}: ${item.raw.y}`
+          }
+        }
       }
     }
   });
+
+  // --- Histogrammes ---
+  histXChart = new Chart(ctxHistX, {
+    type: "bar",
+    data: {
+      labels: Array.from({ length: bins }, (_, i) => (xMin + i*(xMax-xMin)/bins).toFixed(2)),
+      datasets: [{ label: `${x.toUpperCase()} distribution`, data: histX, backgroundColor: "#3B82F6" }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+  });
+
+  histYChart = new Chart(ctxHistY, {
+    type: "bar",
+    data: {
+      labels: Array.from({ length: bins }, (_, i) => (yMin + i*(yMax-yMin)/bins).toFixed(2)),
+      datasets: [{ label: `${y.toUpperCase()} distribution`, data: histY, backgroundColor: "#ef4444" }]
+    },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
+  });
 }
 
-/* -------- LISTENER POUR RELOAD DYNAMIQUE -------- */
+/* -------- Setup select pour rechargement dynamique -------- */
 function setupScatterSelector() {
   const xSelect = document.getElementById("scatterX");
   const ySelect = document.getElementById("scatterY");
-
   if (!xSelect || !ySelect) return;
 
   const reload = () => {
@@ -255,7 +273,7 @@ function setupScatterSelector() {
     params.set("x", newX);
     params.set("y", newY);
     window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
-    loadScatterFromQuery();
+    loadScatterFromQuery(); // rechargement dynamique
   };
 
   xSelect.addEventListener("change", reload);
@@ -264,8 +282,8 @@ function setupScatterSelector() {
 
 /* -------- START -------- */
 window.addEventListener("load", async () => {
-  await loadScatterFromQuery();   
-  setupScatterSelector();          // active le reload dynamique si selects présents
+  setupScatterSelector();
+  await loadScatterFromQuery();
 });
 
 
