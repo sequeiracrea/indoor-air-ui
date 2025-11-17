@@ -9,7 +9,7 @@
   <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-  <!-- API + GAS CHARTS -->
+  <!-- API + Gases JS -->
   <script src="assets/js/api.js"></script>
   <script src="assets/js/gases.js" defer></script>
 </head>
@@ -31,55 +31,59 @@
 
   <main class="container">
 
-    <!-- Sélection des variables pour scatter -->
-    <section class="card">
+    <!-- Section Scatter dynamique -->
+    <section class="card" style="margin-bottom:18px;">
       <h3>Comparer deux gaz / variables</h3>
-      <label>X :
-        <select id="scatterX">
-          <option value="co">CO</option>
-          <option value="co2">CO₂</option>
-          <option value="no2">NO₂</option>
-          <option value="nh3">NH₃</option>
-          <option value="temp">Température</option>
-          <option value="rh">Humidité relative</option>
-          <option value="pres">Pression</option>
-        </select>
-      </label>
-      <label style="margin-left:20px">Y :
-        <select id="scatterY">
-          <option value="co">CO</option>
-          <option value="co2">CO₂</option>
-          <option value="no2">NO₂</option>
-          <option value="nh3">NH₃</option>
-          <option value="temp">Température</option>
-          <option value="rh">Humidité relative</option>
-          <option value="pres">Pression</option>
-        </select>
-      </label>
+
+      <label for="select-x">X :</label>
+      <select id="select-x">
+        <option value="co">CO</option>
+        <option value="co2">CO₂</option>
+        <option value="no2">NO₂</option>
+        <option value="nh3">NH₃</option>
+        <option value="temp">Température</option>
+        <option value="rh">Humidité relative</option>
+        <option value="pres">Pression</option>
+      </select>
+
+      <label for="select-y" style="margin-left:20px;">Y :</label>
+      <select id="select-y">
+        <option value="co2">CO₂</option>
+        <option value="co">CO</option>
+        <option value="no2">NO₂</option>
+        <option value="nh3">NH₃</option>
+        <option value="temp">Température</option>
+        <option value="rh">Humidité relative</option>
+        <option value="pres">Pression</option>
+      </select>
+
       <button id="btn-update-scatter" class="btn" style="margin-left:20px;">Mettre à jour</button>
 
-      <div id="scatterWrapper" style="position:relative; width:100%; max-width:700px; margin-top:20px;">
-        <canvas id="gasesScatter" style="width:100%; height:340px;"></canvas>
-      </div>
+      <h4 id="scatterTitle" style="margin-top:12px;">Scatter</h4>
+      <canvas id="gasesScatter" style="width:100%; height:340px;"></canvas>
+
       <div id="scatterDetails" style="margin-top:10px; font-size:0.9em; color:#555;"></div>
     </section>
 
     <!-- Charts individuels -->
-    <div class="card">
+    <div class="card chart-card">
       <h3>CO</h3>
-      <canvas id="coChart"></canvas>
+      <canvas id="coChart" style="height:200px;"></canvas>
     </div>
-    <div class="card">
+
+    <div class="card chart-card">
       <h3>CO₂</h3>
-      <canvas id="co2Chart"></canvas>
+      <canvas id="co2Chart" style="height:200px;"></canvas>
     </div>
-    <div class="card">
+
+    <div class="card chart-card">
       <h3>NO₂</h3>
-      <canvas id="no2Chart"></canvas>
+      <canvas id="no2Chart" style="height:200px;"></canvas>
     </div>
-    <div class="card">
+
+    <div class="card chart-card">
       <h3>NH₃</h3>
-      <canvas id="nh3Chart"></canvas>
+      <canvas id="nh3Chart" style="height:200px;"></canvas>
     </div>
 
   </main>
