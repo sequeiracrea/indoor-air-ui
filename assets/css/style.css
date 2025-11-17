@@ -103,10 +103,11 @@ canvas{width:100% !important; height:auto !important; display:block}
 /* legend card */
 .legend ul{padding-left:18px}
 .legend li{margin:6px 0}
-/******************************************************
- * RELATIONSHIP GRID
- ******************************************************/
 
+/******************************************************
+ * RELATIONSHIP GRID V1
+ ******************************************************/
+/*
 .matrix-card {
   margin-top: 20px;
 }
@@ -140,6 +141,46 @@ canvas{width:100% !important; height:auto !important; display:block}
   box-shadow: 0 6px 18px rgba(0,0,0,0.18);
   cursor: pointer;
 }
+*/
+
+
+/******************************************************
+ * RELATIONSHIP GRID V2
+ ******************************************************/
+
+/* Matrix grid */
+.matrix {
+  display: grid;
+  gap: 2px;
+}
+
+/* Chaque cellule */
+.matrix-cell {
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8em;
+  cursor: pointer;
+  border: 1px solid #ddd;
+  transition: background 0.2s, outline 0.2s;
+}
+
+/* Diagonale (variable auto) */
+.matrix-cell.diagonal {
+  background-color: #f3f4f6; /* gris clair */
+  font-weight: bold;
+}
+
+/* Hover ligne/colonne */
+.matrix-cell.hovered {
+  outline: 2px solid #f59e0b;
+  background-color: rgba(245, 158, 11, 0.2);
+}
+
+
+
 
 @keyframes fadeInScale {
   from { opacity: 0; transform: scale(0.8);}
