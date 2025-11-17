@@ -1,65 +1,32 @@
-const VARS = ['co','co2','no2','nh3','temp','rh','pres'];
+/* assets/js/gases.js */
+(function(){
+  const { fetchHistory } = window.IndoorAPI;
+  async function buildGases(){
+    try{
+      const json = await fetchHistory(3600);
+      const series = json.series || [];
+      if(!series.length) return console.warn("no series");
+      const map = {
+        co: series.map(s=>s.measures.co),
+        co2: series.map(s=>s.measures.co2),
+        no2: series.map(s=>s.measures.no2),
+        nh3: series.map(s=>s.measures.nh3),
+        ts: series.map(s=>s.timestamp)
+      };
 
-function corrColor(r) {
-  if (r > 0.6) return '#3B82F6';
-  if (r > 0.3) return '#06B6D4';
-  if (r > -0.3) return '#D1D5DB';
-  if (r > -0.6) return '#A855F7';
-  return '#DB2777';
-}
+      const cfg = (label, data, color) => ({
+        type:'line',
+        data:{ labels: map.ts, datasets:[{ label, data, borderColor:color, tension:0.3, fill:true, backgroundColor:color+'22' }]},
+        options:{ animation:false, responsive:true, scales:{ x:{ display:false } } }
+      });
 
-async function buildGrid() {
-  const API_URL = "https://indoor-sim-server.onrender.com/history?sec=3600";
-  try {
-    const res = await fetch(API_URL);
-    const json = await res.json();
-    const series = json.series;
+      new Chart(document.getElementById('coChart').getContext('2d'), cfg('CO', map.co, '#3B82F6'));
+      new Chart(document.getElementById('co2Chart').getContext('2d'), cfg('CO2', map.co2, '#06B6D4'));
+      new Chart(document.getElementById('no2Chart').getContext('2d'), cfg('NO2', map.no2, '#F59F42'));
+      new Chart(document.getElementById('nh3Chart').getContext('2d'), cfg('NH3', map.nh3, '#A855F7'));
 
-    const container = document.getElementById('matrix-container');
-    container.innerHTML = '';
-
-    const dataMap = {};
-    VARS.forEach(v => dataMap[v] = series.map(d => d.measures[v]).filter(x=>x!=null));
-
-    for (let i=0;i<VARS.length;i++){
-      const row = document.createElement('div');
-      row.className = 'matrix-row';
-      for (let j=0;j<VARS.length;j++){
-        const cell = document.createElement('div');
-        cell.className = 'matrix-cell';
-
-        if(i===j){
-          cell.innerHTML = `<div class="mini-histo">📊 ${VARS[i]}</div>`;
-        } else if (j>i){
-          const a = dataMap[VARS[i]];
-          const b = dataMap[VARS[j]];
-          let r=0;
-          if(a.length>=2 && a.length===b.length){
-            const n = a.length;
-            const ma = a.reduce((s,x)=>s+x,0)/n;
-            const mb = b.reduce((s,x)=>s+x,0)/n;
-            let num=0, denA=0, denB=0;
-            for(let k=0;k<n;k++){
-              const da=a[k]-ma; const db=b[k]-mb;
-              num+=da*db; denA+=da*da; denB+=db*db;
-            }
-            r = Math.sqrt(denA*denB)===0 ? 0 : num/Math.sqrt(denA*denB);
-          }
-          cell.style.background = corrColor(r);
-          cell.innerHTML = `<div class="corr-val">${r.toFixed(2)}</div>`;
-          cell.addEventListener('click',()=>window.location.href=`gases.html?x=${VARS[i]}&y=${VARS[j]}`);
-        } else {
-          cell.classList.add('mirror');
-        }
-
-        row.appendChild(cell);
-      }
-      container.appendChild(row);
-    }
-
-  } catch(e){
-    console.error("Erreur relationships.js:", e);
+    }catch(e){ console.error("gases err", e); }
   }
-}
 
-window.addEventListener('load', buildGrid);
+  window.addEventListener('load', buildGases);
+})();
