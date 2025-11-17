@@ -163,7 +163,7 @@ async function loadScatterFromQuery() {
     `Scatter : ${x.toUpperCase()} vs ${y.toUpperCase()}`;
 }
 
-/* -------- SCATTER SELECTION AVEC COULEUR ET DENSITÉ -------- */
+/* -------- SCATTER AVEC COULEUR DISTINCTE X/Y + DENSITÉ -------- */
 async function loadScatterFromQuery() {
   const params = new URLSearchParams(window.location.search);
   const x = params.get("x");
@@ -174,25 +174,26 @@ async function loadScatterFromQuery() {
   const titleEl = document.getElementById("scatterTitle");
   if(titleEl) titleEl.textContent = `Scatter : ${x.toUpperCase()} vs ${y.toUpperCase()}`;
 
-  const history = await IndoorAPI.fetchHistory(1800); // last 30min
+  const history = await IndoorAPI.fetchHistory(1800); // 30 min
   const data = history.series;
 
   if (!data || data.length === 0) return;
 
-  // Calcul densité simple (nombre de voisins proches)
+  // Préparer les points avec densité simple
   const points = data.map(d => ({ x: d.measures[x], y: d.measures[y] }));
-  const maxDistance = 0.05 * (Math.max(...points.map(p => p.x)) - Math.min(...points.map(p => p.x))); // 5% range
+  const maxDistance = 0.05 * (Math.max(...points.map(p => p.x)) - Math.min(...points.map(p => p.x)));
   const densities = points.map(p => 
     points.filter(q => Math.abs(q.x - p.x) < maxDistance && Math.abs(q.y - p.y) < maxDistance).length
   );
   const maxDensity = Math.max(...densities);
 
-  const colors = densities.map(d => {
+  // Générer couleur mixte X/Y + densité
+  const colors = densities.map((d, i) => {
     const intensity = Math.min(1, d / maxDensity);
-    // Gradient bleu-orange selon densité
-    const r = Math.floor(245 * intensity);
-    const g = Math.floor(158 * (1 - intensity));
-    const b = Math.floor(11 * (1 - intensity));
+    // Couleur pour X en bleu, Y en rouge, mélangé par densité
+    const r = Math.floor(255 * intensity * 0.6 + 200 * (i / points.length) * 0.4); // rouge dominant Y
+    const g = Math.floor(100 * (1 - intensity)); // vert faible pour nuance
+    const b = Math.floor(255 * (1 - intensity) * 0.8); // bleu X
     return `rgb(${r},${g},${b})`;
   });
 
@@ -206,7 +207,7 @@ async function loadScatterFromQuery() {
     data: {
       datasets: [
         {
-          label: `${x} vs ${y}`,
+          label: `${x.toUpperCase()} vs ${y.toUpperCase()}`,
           data: points,
           pointBackgroundColor: colors,
           pointBorderColor: "#333",
@@ -221,18 +222,14 @@ async function loadScatterFromQuery() {
       plugins: {
         tooltip: {
           callbacks: {
-            label: (item) => `${x}: ${item.raw.x} — ${y}: ${item.raw.y}`
+            label: (item) => `${x.toUpperCase()}: ${item.raw.x} — ${y.toUpperCase()}: ${item.raw.y}`
           }
         },
         legend: { display: false }
       },
       scales: {
-        x: {
-          title: { display: true, text: x.toUpperCase() }
-        },
-        y: {
-          title: { display: true, text: y.toUpperCase() }
-        }
+        x: { title: { display: true, text: x.toUpperCase() } },
+        y: { title: { display: true, text: y.toUpperCase() } }
       }
     }
   });
