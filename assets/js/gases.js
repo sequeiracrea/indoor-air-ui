@@ -163,30 +163,42 @@ async function loadScatterFromQuery() {
     `Scatter : ${x.toUpperCase()} vs ${y.toUpperCase()}`;
 }
 
-/* -------- SCATTER SELECTION FROM RELATIONSHIPS -------- */
+/* -------- SCATTER SELECTION AVEC COULEUR ET DENSITÉ -------- */
 async function loadScatterFromQuery() {
   const params = new URLSearchParams(window.location.search);
   const x = params.get("x");
   const y = params.get("y");
 
-  if (!x || !y) return; // pas de scatter à charger
+  if (!x || !y) return;
 
   const titleEl = document.getElementById("scatterTitle");
   if(titleEl) titleEl.textContent = `Scatter : ${x.toUpperCase()} vs ${y.toUpperCase()}`;
 
-  const history = await IndoorAPI.fetchHistory(1800); // 30min
+  const history = await IndoorAPI.fetchHistory(1800); // last 30min
   const data = history.series;
 
-  // points pour scatter
-  const points = data.map(d => ({
-    x: d.measures[x],
-    y: d.measures[y]
-  }));
+  if (!data || data.length === 0) return;
+
+  // Calcul densité simple (nombre de voisins proches)
+  const points = data.map(d => ({ x: d.measures[x], y: d.measures[y] }));
+  const maxDistance = 0.05 * (Math.max(...points.map(p => p.x)) - Math.min(...points.map(p => p.x))); // 5% range
+  const densities = points.map(p => 
+    points.filter(q => Math.abs(q.x - p.x) < maxDistance && Math.abs(q.y - p.y) < maxDistance).length
+  );
+  const maxDensity = Math.max(...densities);
+
+  const colors = densities.map(d => {
+    const intensity = Math.min(1, d / maxDensity);
+    // Gradient bleu-orange selon densité
+    const r = Math.floor(245 * intensity);
+    const g = Math.floor(158 * (1 - intensity));
+    const b = Math.floor(11 * (1 - intensity));
+    return `rgb(${r},${g},${b})`;
+  });
 
   const ctx = document.getElementById("gasesScatter");
   if (!ctx) return;
 
-  // on détruit l'ancien chart s'il existe
   if (ctx.chartInstance) ctx.chartInstance.destroy();
 
   ctx.chartInstance = new Chart(ctx, {
@@ -196,8 +208,8 @@ async function loadScatterFromQuery() {
         {
           label: `${x} vs ${y}`,
           data: points,
-          pointBackgroundColor: points.map((p,i) => i % 2 === 0 ? "#3B82F6" : "#F59E0B"), // alterner couleurs ou autre logique
-          pointBorderColor: points.map((p,i) => i % 2 === 0 ? "#1E40AF" : "#B45309"),
+          pointBackgroundColor: colors,
+          pointBorderColor: "#333",
           pointRadius: 5,
           showLine: false
         }
@@ -211,7 +223,8 @@ async function loadScatterFromQuery() {
           callbacks: {
             label: (item) => `${x}: ${item.raw.x} — ${y}: ${item.raw.y}`
           }
-        }
+        },
+        legend: { display: false }
       },
       scales: {
         x: {
@@ -224,6 +237,7 @@ async function loadScatterFromQuery() {
     }
   });
 }
+
 
 
 /* -----------------------------------------------------
