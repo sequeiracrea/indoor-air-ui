@@ -3,13 +3,20 @@
 <head>
   <meta charset="UTF-8" />
   <title>Gases – Scatter/Lines</title>
+
   <link rel="stylesheet" href="assets/css/style.css" />
+
+  <!-- Chart.js -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+  <!-- API + GAS CHARTS -->
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/gases.js" defer></script>
 </head>
 
 <body>
   <header class="app-header">
-    <h1>Gases — séries</h1>
+    <h1>Gases — séries & scatter dynamique</h1>
   </header>
 
   <nav class="top-nav">
@@ -23,25 +30,34 @@
   </nav>
 
   <main class="container">
+
+    <!-- Scatter dynamique utilisé par Relationships -->
+    <div class="card">
+      <h2 id="scatterTitle">Scatter (sélection auto depuis Relations)</h2>
+      <canvas id="gasesScatter"></canvas>
+    </div>
+
+    <!-- Charts individuels -->
     <div class="card">
       <h3>CO</h3>
       <canvas id="coChart"></canvas>
     </div>
+
     <div class="card">
       <h3>CO₂</h3>
       <canvas id="co2Chart"></canvas>
     </div>
+
     <div class="card">
       <h3>NO₂</h3>
       <canvas id="no2Chart"></canvas>
     </div>
+
     <div class="card">
       <h3>NH₃</h3>
       <canvas id="nh3Chart"></canvas>
     </div>
-  </main>
 
-<script src="assets/js/api.js"></script>
-<script src="assets/js/gases.js"></script>
+  </main>
 </body>
 </html>
