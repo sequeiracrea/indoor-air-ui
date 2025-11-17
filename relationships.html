@@ -2,9 +2,11 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Matrice de Corrélations — Relationship Grid</title>
+  <title>Relationship Grid — Indoor Air</title>
 
   <link rel="stylesheet" href="assets/css/style.css" />
+
+  <!-- Chart.js pour futurs mini-graphs si besoin -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
   <script type="module" src="assets/js/relationships.js"></script>
@@ -14,28 +16,51 @@
   <header class="app-header">
     <h1>Relationship Grid</h1>
     <nav>
-      <a href="index.html">Dashboard</a>
-      <a href="scatterbar.html">ScatterBar</a>
-      <a href="gases.html">Gases</a>
-      <a class="active" href="relationships.html">Relationships</a>
+      <a href="index.html">Dashboard</a> |
+      <a href="scatterbar.html">ScatterBar</a> |
+      <a href="gases.html">Gases</a> |
+      <a class="active" href="relationships.html">Relationship</a>
     </nav>
   </header>
 
   <main class="container">
+
+    <!-- FILTRE -->
     <section class="card">
-      <h2>Matrice des corrélations</h2>
-      <p>Analyse des 30 dernières minutes (1800 sec).</p>
+      <h2>Variables affichées</h2>
+      <p>Sélectionnez les variables à inclure dans la matrice :</p>
+
+      <select id="var-selector" multiple class="select-multi">
+        <option selected>co2</option>
+        <option selected>co</option>
+        <option selected>no2</option>
+        <option selected>nh3</option>
+        <option selected>temp</option>
+        <option selected>rh</option>
+        <option selected>pres</option>
+      </select>
+
+      <button id="apply-vars" class="btn">Mettre à jour</button>
+    </section>
+
+    <!-- MATRICE -->
+    <section class="matrix-card">
       <div id="matrix-container" class="matrix"></div>
     </section>
 
+    <!-- LEGENDE -->
     <section class="card legend">
       <h2>Légende</h2>
+
       <ul>
-        <li><span class="dot pos"></span>Corrélation positive forte (r > 0.6)</li>
-        <li><span class="dot neg"></span>Corrélation négative forte (r < -0.6)</li>
-        <li><span class="dot neutral"></span>Corrélation faible (−0.3 ≤ r ≤ 0.3)</li>
+        <li><b>Grand cercle</b> → corrélation forte</li>
+        <li><b>Couleur bleue</b> → corrélation positive</li>
+        <li><b>Couleur violette</b> → corrélation négative</li>
+        <li><b>Gris</b> → corrélation faible</li>
+        <li><b>Click</b> → ouvrir scatter détaillé</li>
       </ul>
     </section>
+
   </main>
 </body>
 </html>
