@@ -2,42 +2,55 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Matrice de corrélations — Relationship Grid</title>
+  <title>Matrice de Corrélations — Relationship Grid</title>
 
   <link rel="stylesheet" href="assets/css/style.css" />
 
-  <!-- Chart.js (UMD pour mini-charts si besoin) -->
+  <!-- Chart.js seulement si mini-graphes ou debug -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="assets/js/relationships.js"></script>
+
+  <!-- Module JS -->
+  <script type="module" src="assets/js/relationships.js"></script>
 </head>
 
 <body>
   <header class="app-header">
     <h1>Relationship Grid</h1>
+
     <nav>
-      <a href="index.html">Dashboard</a> |
-      <a href="scatterbar.html">ScatterBar</a> |
+      <a href="index.html">Dashboard</a>
+      <a href="scatterbar.html">ScatterBar</a>
       <a href="gases.html">Gases</a>
+      <a class="active" href="relationship.html">Relationship</a>
     </nav>
   </header>
 
   <main class="container">
-    <section class="matrix-card">
+
+    <!-- MATRICE -->
+    <section class="matrix-card card">
+      <h2>Matrice des corrélations</h2>
+      <p class="small-info">
+        Basée sur les 30 dernières minutes de données (<code>/corr?sec=1800</code>).
+      </p>
       <div id="matrix-container" class="matrix"></div>
     </section>
 
+    <!-- LÉGENDE -->
     <section class="card legend">
       <h2>Légende</h2>
       <p>
-        Cette matrice montre la corrélation entre chaque paire de variables.<br>
-        Cliquez sur une cellule pour ouvrir un scatter détaillé.
+        La couleur de chaque case représente la corrélation entre les deux variables.
+        Cliquez sur une case pour ouvrir un scatter CO₂/NO₂ ou une autre combinaison selon la cellule.
       </p>
+
       <ul>
-        <li>🔵 Corrélation forte positive (r > 0.6)</li>
-        <li>🟣 Corrélation forte négative (r < -0.6)</li>
-        <li>⚪ Corrélation faible (r entre -0.3 et 0.3)</li>
+        <li><span class="dot pos"></span> Corrélation positive forte (r > 0.6)</li>
+        <li><span class="dot neg"></span> Corrélation négative forte (r < -0.6)</li>
+        <li><span class="dot neutral"></span> Corrélation faible (−0.3 ≤ r ≤ 0.3)</li>
       </ul>
     </section>
+
   </main>
 </body>
 </html>
