@@ -1,5 +1,9 @@
 /* assets/js/gases.js */
 
+/* stock des instances Chart.js pour pouvoir les détruire avant recréation */
+const chartInstances = {};
+
+/* -------- LINES CHARTS (4 gaz) -------- */
 async function loadCharts() {
   const history = await IndoorAPI.fetchHistory(3600); // 1h
   const data = history.series;
@@ -8,19 +12,24 @@ async function loadCharts() {
 
   const labels = data.map(d => d.timestamp);
 
-  // ---- CHART LINES ----
-  makeLineChart("coChart", labels, data.map(d => d.measures.co), "CO (ppm)");
+  makeLineChart("coChart",  labels, data.map(d => d.measures.co),  "CO (ppm)");
   makeLineChart("co2Chart", labels, data.map(d => d.measures.co2), "CO₂ (ppm)");
   makeLineChart("no2Chart", labels, data.map(d => d.measures.no2), "NO₂ (ppb)");
   makeLineChart("nh3Chart", labels, data.map(d => d.measures.nh3), "NH₃ (ppm)");
 }
 
-/* Create a Chart.js line */
+/* Create a Chart.js line (corrigé) */
 function makeLineChart(canvasId, labels, values, label) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
 
-  new Chart(canvas, {
+  // Détruit l'ancien chart si déjà existant
+  if (chartInstances[canvasId]) {
+    chartInstances[canvasId].destroy();
+  }
+
+  // Nouveau chart
+  chartInstances[canvasId] = new Chart(canvas, {
     type: "line",
     data: {
       labels,
@@ -40,16 +49,18 @@ function makeLineChart(canvasId, labels, values, label) {
   });
 }
 
-/* -------- SCATTER SELECTION FROM RELATIONSHIPS -------- */
+/* -------- SCATTER (depuis relationships) -------- */
 async function loadScatterFromQuery() {
   const params = new URLSearchParams(window.location.search);
   const x = params.get("x");
   const y = params.get("y");
 
-  // No scatter requested → exit silently
-  if (!x || !y) return;
+  if (!x || !y) return;  // Rien à faire
 
-  document.getElementById("scatterTitle").textContent = `Scatter : ${x.toUpperCase()} vs ${y.toUpperCase()}`;
+  const title = document.getElementById("scatterTitle");
+  if (title) {
+    title.textContent = `Scatter : ${x.toUpperCase()} vs ${y.toUpperCase()}`;
+  }
 
   const history = await IndoorAPI.fetchHistory(1800);
   const data = history.series;
@@ -59,10 +70,15 @@ async function loadScatterFromQuery() {
     y: d.measures[y]
   }));
 
-  const ctx = document.getElementById("gasesScatter");
-  if (!ctx) return;
+  const canvas = document.getElementById("gasesScatter");
+  if (!canvas) return;
 
-  new Chart(ctx, {
+  // Détruit un ancien scatter s'il existe
+  if (chartInstances["scatter"]) {
+    chartInstances["scatter"].destroy();
+  }
+
+  chartInstances["scatter"] = new Chart(canvas, {
     type: "scatter",
     data: {
       datasets: [
@@ -80,9 +96,13 @@ async function loadScatterFromQuery() {
       plugins: {
         tooltip: {
           callbacks: {
-            label: (item) => `${x}: ${item.raw.x} — ${y}: ${item.raw.y}`
+            label: item => `${x}: ${item.raw.x} — ${y}: ${item.raw.y}`
           }
         }
+      },
+      scales: {
+        x: { title: { display: true, text: x.toUpperCase() } },
+        y: { title: { display: true, text: y.toUpperCase() } }
       }
     }
   });
@@ -90,6 +110,6 @@ async function loadScatterFromQuery() {
 
 /* -------- START -------- */
 window.addEventListener("load", async () => {
-  await loadScatterFromQuery();   // load scatter if needed
-  await loadCharts();             // always load the 4 gases charts
+  await loadScatterFromQuery();   // scatter si demandé
+  await loadCharts();             // toujours afficher les 4 gaz
 });
