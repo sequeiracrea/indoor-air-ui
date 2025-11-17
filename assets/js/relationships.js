@@ -1,59 +1,82 @@
-// assets/js/relationships.js
-const API = "https://indoor-sim-server.onrender.com";
+import { API } from "./api.js";
 
-async function fetchCorr() {
-  try {
-    const url = `${API}/corr?vars=co2,no2,nh3,co,temp,rh,pres&sec=1800`;
-    const res = await fetch(url);
-    const data = await res.json();
+/**
+ * Charge la matrice de corrélation
+ */
+async function loadCorr() {
+  const vars = [...document.getElementById("var-selector").selectedOptions].map(o => o.value);
 
-    if (!data || !data.corr || !data.vars) {
-      console.error("Corr API invalide :", data);
-      return null;
-    }
-
-    return data;
-  } catch (err) {
-    console.error("Erreur fetchCorr:", err);
-    return null;
-  }
-}
-
-function colorForCorr(r) {
-  if (r > 0.6) return "#4c7df0";   // positif fort
-  if (r < -0.6) return "#b34cff";  // négatif fort
-  return "#ccc";                  // neutre
-}
-
-function buildMatrix(vars, corr) {
-  const container = document.getElementById("matrix-container");
-  container.innerHTML = "";
-
-  vars.forEach(v1 => {
-    vars.forEach(v2 => {
-      const key = `${v1}-${v2}`;
-      const r = corr[key] ?? 0;
-
-      const cell = document.createElement("div");
-      cell.className = "matrix-cell";
-      cell.style.backgroundColor = colorForCorr(r);
-      cell.innerHTML = `<strong>${r}</strong><br><small>${v1} / ${v2}</small>`;
-
-      cell.onclick = () => {
-        // ouvre un scatter dynamique (tu me diras si tu veux le générer)
-        window.location.href = `scatterbar.html?x=${v1}&y=${v2}`;
-      };
-
-      container.appendChild(cell);
-    });
-  });
-}
-
-async function init() {
-  const data = await fetchCorr();
-  if (!data) return;
+  const url = `${API}/corr?vars=${vars.join(",")}&sec=1800`;
+  const res = await fetch(url);
+  const data = await res.json();
 
   buildMatrix(data.vars, data.corr);
 }
 
-init();
+/**
+ * Construit la matrice visuelle
+ */
+function buildMatrix(vars, corr) {
+  const container = document.getElementById("matrix-container");
+  container.innerHTML = "";
+
+  for (let i = 0; i < vars.length; i++) {
+    for (let j = 0; j < vars.length; j++) {
+      const v1 = vars[i];
+      const v2 = vars[j];
+
+      const cell = document.createElement("div");
+
+      // DIAGONALE
+      if (v1 === v2) {
+        cell.className = "matrix-cell diagonal";
+        cell.innerHTML = `<strong>${v1}</strong><small>auto</small>`;
+        container.appendChild(cell);
+        continue;
+      }
+
+      // RECUP CORR
+      const key1 = `${v1}-${v2}`;
+      const key2 = `${v2}-${v1}`;
+      const r = corr[key1] ?? corr[key2] ?? 0;
+
+      // classes selon signe
+      let cls = "corr-neutral";
+      if (r > 0.3) cls = "corr-pos";
+      if (r < -0.3) cls = "corr-neg";
+
+      // cercle proportionnel
+      const magnitude = Math.abs(r);
+      const size = 15 + magnitude * 45; // 15 → 60 px
+
+      cell.className = `matrix-cell ${cls}`;
+      cell.innerHTML = `
+        <div class="corr-dot" 
+             style="width:${size}px; height:${size}px; background:white; opacity:0.85;"></div>
+        <strong>${r}</strong>
+        <small>${v1} vs ${v2}</small>
+      `;
+
+      // Click → page scatter
+      cell.addEventListener("click", () => {
+        window.location.href = `gases.html?x=${v1}&y=${v2}`;
+      });
+
+      // tooltip explicatif
+      cell.title = 
+        `Corrélation : ${r}
+Relation : ${v1} ↔ ${v2}
+Tendance : ${r > 0 ? "positive" : "négative"}`;
+
+      container.appendChild(cell);
+    }
+  }
+}
+
+/**
+ * Initialisation
+ */
+window.addEventListener("load", loadCorr);
+
+// bouton "Mettre à jour"
+document.getElementById("apply-vars").addEventListener("click", loadCorr);
