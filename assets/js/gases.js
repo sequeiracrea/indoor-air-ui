@@ -163,6 +163,69 @@ async function loadScatterFromQuery() {
     `Scatter : ${x.toUpperCase()} vs ${y.toUpperCase()}`;
 }
 
+/* -------- SCATTER SELECTION FROM RELATIONSHIPS -------- */
+async function loadScatterFromQuery() {
+  const params = new URLSearchParams(window.location.search);
+  const x = params.get("x");
+  const y = params.get("y");
+
+  if (!x || !y) return; // pas de scatter à charger
+
+  const titleEl = document.getElementById("scatterTitle");
+  if(titleEl) titleEl.textContent = `Scatter : ${x.toUpperCase()} vs ${y.toUpperCase()}`;
+
+  const history = await IndoorAPI.fetchHistory(1800); // 30min
+  const data = history.series;
+
+  // points pour scatter
+  const points = data.map(d => ({
+    x: d.measures[x],
+    y: d.measures[y]
+  }));
+
+  const ctx = document.getElementById("gasesScatter");
+  if (!ctx) return;
+
+  // on détruit l'ancien chart s'il existe
+  if (ctx.chartInstance) ctx.chartInstance.destroy();
+
+  ctx.chartInstance = new Chart(ctx, {
+    type: "scatter",
+    data: {
+      datasets: [
+        {
+          label: `${x} vs ${y}`,
+          data: points,
+          pointBackgroundColor: points.map((p,i) => i % 2 === 0 ? "#3B82F6" : "#F59E0B"), // alterner couleurs ou autre logique
+          pointBorderColor: points.map((p,i) => i % 2 === 0 ? "#1E40AF" : "#B45309"),
+          pointRadius: 5,
+          showLine: false
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: (item) => `${x}: ${item.raw.x} — ${y}: ${item.raw.y}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          title: { display: true, text: x.toUpperCase() }
+        },
+        y: {
+          title: { display: true, text: y.toUpperCase() }
+        }
+      }
+    }
+  });
+}
+
+
 /* -----------------------------------------------------
    START
 ------------------------------------------------------*/
