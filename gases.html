@@ -29,77 +29,51 @@
     <a href="relationships.html">Relations</a>
   </nav>
 
-<section class="card" style="margin-bottom:18px">
-  <h3>Comparer deux gaz</h3>
-
-  <label>X :</label>
-  <select id="select-x">
-    <option value="co">CO</option>
-    <option value="co2">CO₂</option>
-    <option value="no2">NO₂</option>
-    <option value="nh3">NH₃</option>
-    <option value="temp">Température</option>
-    <option value="rh">Humidité relative</option>
-    <option value="pres">Pression</option>
-  </select>
-
-  <label style="margin-left:20px">Y :</label>
-  <select id="select-y">
-    <option value="co2">CO₂</option>
-    <option value="co">CO</option>
-    <option value="no2">NO₂</option>
-    <option value="nh3">NH₃</option>
-    <option value="temp">Température</option>
-    <option value="rh">Humidité relative</option>
-    <option value="pres">Pression</option>
-  </select>
-
-  <button id="btn-update-scatter" class="btn" style="margin-left:20px">
-    Mettre à jour
-  </button>
-
-  <h4 id="scatterTitle" style="margin-top:12px;">Scatter</h4>
-  <canvas id="gasesScatter" style="width:100%; height:340px;"></canvas>
-
-  <div id="scatterDetails" style="margin-top:10px; font-size:0.9em; color:#555;"></div>
-</section>
-
-<div class="scatter-controls">
-  <label>X:
-    <select id="scatterX">
-      <option value="co">CO</option>
-      <option value="co2">CO₂</option>
-      <option value="no2">NO₂</option>
-      <option value="nh3">NH₃</option>
-      <option value="temp">Temp</option>
-      <option value="rh">Humidité</option>
-      <option value="pres">Pression</option>
-    </select>
-  </label>
-
-  <label>Y:
-    <select id="scatterY">
-      <option value="co">CO</option>
-      <option value="co2">CO₂</option>
-      <option value="no2">NO₂</option>
-      <option value="nh3">NH₃</option>
-      <option value="temp">Temp</option>
-      <option value="rh">Humidité</option>
-      <option value="pres">Pression</option>
-    </select>
-  </label>
-</div>
-
-  
   <main class="container">
+    <!-- SECTION SCATTER DYNAMIQUE -->
+    <section class="card">
+      <h3>Comparer deux variables</h3>
 
-    <!-- Scatter dynamique utilisé par Relationships -->
-    <div class="card chart-card" id="scatterCard" style="display:none;">
-      <h3 id="scatterTitle">Scatter (sélection auto depuis Relations)</h3>
-      <canvas id="gasesScatter"></canvas>
-    </div>
+      <label>X :
+        <select id="scatterX">
+          <option value="co">CO</option>
+          <option value="co2">CO₂</option>
+          <option value="no2">NO₂</option>
+          <option value="nh3">NH₃</option>
+          <option value="temp">Température</option>
+          <option value="rh">Humidité</option>
+          <option value="pres">Pression</option>
+        </select>
+      </label>
 
-    <!-- Charts individuels -->
+      <label style="margin-left:20px">Y :
+        <select id="scatterY">
+          <option value="co">CO</option>
+          <option value="co2">CO₂</option>
+          <option value="no2">NO₂</option>
+          <option value="nh3">NH₃</option>
+          <option value="temp">Température</option>
+          <option value="rh">Humidité</option>
+          <option value="pres">Pression</option>
+        </select>
+      </label>
+
+      <button id="btn-update-scatter" class="btn" style="margin-left:20px">
+        Mettre à jour
+      </button>
+
+      <h4 id="scatterTitle" style="margin-top:12px;">Scatter</h4>
+
+      <div class="scatter-grid" style="margin-top:10px;">
+        <div class="hist-x"><canvas id="histX" style="height:80px;"></canvas></div>
+        <div class="scatter-main"><canvas id="gasesScatter" style="height:340px;"></canvas></div>
+        <div class="hist-y"><canvas id="histY" style="width:80px;"></canvas></div>
+      </div>
+
+      <div id="scatterDetails" style="margin-top:10px; font-size:0.9em; color:#555;"></div>
+    </section>
+
+    <!-- CHARTS INDIVIDUELS -->
     <div class="card chart-card">
       <h3>CO</h3>
       <canvas id="coChart"></canvas>
@@ -119,7 +93,6 @@
       <h3>NH₃</h3>
       <canvas id="nh3Chart"></canvas>
     </div>
-
   </main>
 </body>
 </html>
