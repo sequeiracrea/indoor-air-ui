@@ -1,62 +1,59 @@
-/* assets/js/relationships.js */
-(function(){
-  const VARS = ['co','co2','no2','nh3','temp','rh','pres'];
-  const { fetchHistory } = window.IndoorAPI;
+// assets/js/relationships.js
+const API = "https://indoor-sim-server.onrender.com";
 
-  function corrColor(r){
-    if(r>0.6) return '#3B82F6';
-    if(r>0.3) return '#06B6D4';
-    if(r>-0.3) return '#D1D5DB';
-    if(r>-0.6) return '#A855F7';
-    return '#DB2777';
-  }
+async function fetchCorr() {
+  try {
+    const url = `${API}/corr?vars=co2,no2,nh3,co,temp,rh,pres&sec=1800`;
+    const res = await fetch(url);
+    const data = await res.json();
 
-  function pearson(a,b){
-    const n = a.length;
-    if(n<2) return 0;
-    const ma = a.reduce((s,x)=>s+x,0)/n;
-    const mb = b.reduce((s,x)=>s+x,0)/n;
-    let num=0, denA=0, denB=0;
-    for(let i=0;i<n;i++){
-      const da=a[i]-ma, db=b[i]-mb;
-      num+=da*db; denA+=da*da; denB+=db*db;
+    if (!data || !data.corr || !data.vars) {
+      console.error("Corr API invalide :", data);
+      return null;
     }
-    const den = Math.sqrt(denA*denB); return den? num/den : 0;
+
+    return data;
+  } catch (err) {
+    console.error("Erreur fetchCorr:", err);
+    return null;
   }
+}
 
-  async function buildGrid(){
-    try{
-      const json = await fetchHistory(3600);
-      const series = json.series || [];
-      const container = document.getElementById('matrix-container');
-      container.innerHTML = '';
+function colorForCorr(r) {
+  if (r > 0.6) return "#4c7df0";   // positif fort
+  if (r < -0.6) return "#b34cff";  // négatif fort
+  return "#ccc";                  // neutre
+}
 
-      const dataMap = {};
-      VARS.forEach(v => dataMap[v] = series.map(s => (s.measures && s.measures[v] != null) ? s.measures[v] : null).filter(x=>x!=null));
+function buildMatrix(vars, corr) {
+  const container = document.getElementById("matrix-container");
+  container.innerHTML = "";
 
-      // grid: create cells in row-major
-      for(let i=0;i<VARS.length;i++){
-        for(let j=0;j<VARS.length;j++){
-          const cell = document.createElement('div');
-          cell.className = 'matrix-cell';
-          if(i===j){
-            cell.innerHTML = `<div class="mini-histo">📊 ${VARS[i]}</div>`;
-          } else if(j>i){
-            const a = dataMap[VARS[i]] || [];
-            const b = dataMap[VARS[j]] || [];
-            let r = 0;
-            if(a.length>=2 && a.length===b.length) r = pearson(a,b);
-            cell.style.background = corrColor(r);
-            cell.innerHTML = `<div class="corr-val">${r.toFixed(2)}</div>`;
-            cell.addEventListener('click', ()=> window.location.href = `gases.html?x=${VARS[i]}&y=${VARS[j]}`);
-          } else {
-            cell.classList.add('mirror');
-          }
-          container.appendChild(cell);
-        }
-      }
-    }catch(e){ console.error("relationships err", e); }
-  }
+  vars.forEach(v1 => {
+    vars.forEach(v2 => {
+      const key = `${v1}-${v2}`;
+      const r = corr[key] ?? 0;
 
-  window.addEventListener('load', buildGrid);
-})();
+      const cell = document.createElement("div");
+      cell.className = "matrix-cell";
+      cell.style.backgroundColor = colorForCorr(r);
+      cell.innerHTML = `<strong>${r}</strong><br><small>${v1} / ${v2}</small>`;
+
+      cell.onclick = () => {
+        // ouvre un scatter dynamique (tu me diras si tu veux le générer)
+        window.location.href = `scatterbar.html?x=${v1}&y=${v2}`;
+      };
+
+      container.appendChild(cell);
+    });
+  });
+}
+
+async function init() {
+  const data = await fetchCorr();
+  if (!data) return;
+
+  buildMatrix(data.vars, data.corr);
+}
+
+init();
