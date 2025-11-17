@@ -1,4 +1,8 @@
-import { fetchCorr } from './api.js';
+// au lieu de import
+// import { fetchCorr } from './api.js';
+
+const fetchCorr = window.IndoorAPI.fetchCorr;
+
 
 let vars = ['co','co2','no2','nh3','temp','rh','pres'];
 let modeLibre = true;
