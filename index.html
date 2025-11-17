@@ -1,51 +1,20 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <title>Indoor Air – Dashboard</title>
-  <link rel="stylesheet" href="assets/css/style.css" />
-
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
-  <!-- Script de la page -->
-  <script type="module" src="assets/js/dashboard.js"></script>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Indoor Air – Dashboard</title>
+<link rel="stylesheet" href="assets/css/style.css"/>
+<!-- Chart.js UMD -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
-<script>
-  const path = location.pathname.split("/").pop();
-  document.querySelectorAll(".top-nav a").forEach(a => {
-    if (a.getAttribute("href") === path) {
-      a.classList.add("active");
-    }
-  });
-</script>
-
 <body>
-  <header class="app-header">
-    <h1>Dashboard</h1>
-  </header>
+<header class="app-header">
+  <h1>Indoor Air – Dashboard</h1>
+</header>
 
-  <main class="container">
-    <section class="row">
-      <div class="card center">
-        <h2>GAQI</h2>
-        <canvas id="gaqiDonut" width="260" height="260"></canvas>
-        <div id="gaqiLabel" class="value-large"></div>
-      </div>
-
-      <div class="card">
-        <h2>Composants GAQI</h2>
-        <canvas id="subbarsChart" width="300" height="200"></canvas>
-      </div>
-    </section>
-
-    <h2>Mesures actuelles</h2>
-    <section class="grid-cards" id="measuresGrid"></section>
-  </main>
-</body>
-  
 <nav class="top-nav">
-  <a href="index.html">Dashboard</a>
+  <a href="index.html" class="active">Dashboard</a>
   <a href="timeline.html">Timeline</a>
   <a href="gases.html">Gases</a>
   <a href="scatterbar.html">ScatterBar</a>
@@ -54,4 +23,25 @@
   <a href="relationships.html">Relations</a>
 </nav>
 
+<main class="container">
+  <div class="row">
+    <div class="card" style="max-width:420px">
+      <h3>GAQI</h3>
+      <canvas id="gaqiDonut"></canvas>
+      <div id="gaqiLabel" style="text-align:center;margin-top:8px;font-weight:700"></div>
+    </div>
+
+    <div class="card">
+      <h3>Composants</h3>
+      <canvas id="subbarsChart"></canvas>
+    </div>
+  </div>
+
+  <h3>Mesures actuelles</h3>
+  <div id="measuresGrid" class="grid-cards"></div>
+</main>
+
+<script src="assets/js/api.js"></script>
+<script src="assets/js/dashboard.js"></script>
+</body>
 </html>
