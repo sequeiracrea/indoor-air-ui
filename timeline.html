@@ -1,25 +1,27 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <title>Timeline – AQL</title>
-  <link rel="stylesheet" href="assets/css/style.css" />
-
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
-  <script type="module" src="assets/js/timeline.js"></script>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Timeline – AQL</title>
+<link rel="stylesheet" href="assets/css/style.css"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
-
 <body>
-  <header class="app-header">
-    <h1>Timeline — AQL</h1>
-  </header>
-
-  <main class="container">
-    <div class="card">
-      <canvas id="timelineChart"></canvas>
-    </div>
-  </main>
+<header class="app-header"><h1>Timeline — AQL</h1></header>
+<nav class="top-nav">
+  <a href="index.html">Dashboard</a>
+  <a href="timeline.html" class="active">Timeline</a>
+  <a href="gases.html">Gases</a>
+  <a href="scatterbar.html">ScatterBar</a>
+  <a href="comfort.html">Confort</a>
+  <a href="events.html">Stabilité</a>
+  <a href="relationships.html">Relations</a>
+</nav>
+<main class="container">
+  <div class="card"><canvas id="timelineChart"></canvas></div>
+</main>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/timeline.js"></script>
 </body>
 </html>
