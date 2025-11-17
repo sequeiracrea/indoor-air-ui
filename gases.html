@@ -34,57 +34,62 @@
     <!-- Section Scatter dynamique -->
     <section class="card" style="margin-bottom:18px;">
       <h3>Comparer deux gaz / variables</h3>
+      <div class="row" style="align-items:center; flex-wrap:wrap; gap:12px;">
+        <label for="select-x">X :
+          <select id="select-x">
+            <option value="co">CO</option>
+            <option value="co2">CO₂</option>
+            <option value="no2">NO₂</option>
+            <option value="nh3">NH₃</option>
+            <option value="temp">Température</option>
+            <option value="rh">Humidité relative</option>
+            <option value="pres">Pression</option>
+          </select>
+        </label>
 
-      <label for="select-x">X :</label>
-      <select id="select-x">
-        <option value="co">CO</option>
-        <option value="co2">CO₂</option>
-        <option value="no2">NO₂</option>
-        <option value="nh3">NH₃</option>
-        <option value="temp">Température</option>
-        <option value="rh">Humidité relative</option>
-        <option value="pres">Pression</option>
-      </select>
+        <label for="select-y">Y :
+          <select id="select-y">
+            <option value="co2">CO₂</option>
+            <option value="co">CO</option>
+            <option value="no2">NO₂</option>
+            <option value="nh3">NH₃</option>
+            <option value="temp">Température</option>
+            <option value="rh">Humidité relative</option>
+            <option value="pres">Pression</option>
+          </select>
+        </label>
 
-      <label for="select-y" style="margin-left:20px;">Y :</label>
-      <select id="select-y">
-        <option value="co2">CO₂</option>
-        <option value="co">CO</option>
-        <option value="no2">NO₂</option>
-        <option value="nh3">NH₃</option>
-        <option value="temp">Température</option>
-        <option value="rh">Humidité relative</option>
-        <option value="pres">Pression</option>
-      </select>
-
-      <button id="btn-update-scatter" class="btn" style="margin-left:20px;">Mettre à jour</button>
+        <button id="btn-update-scatter" class="btn">Mettre à jour</button>
+      </div>
 
       <h4 id="scatterTitle" style="margin-top:12px;">Scatter</h4>
-      <canvas id="gasesScatter" style="width:100%; height:340px;"></canvas>
+      <canvas id="gasesScatter" style="width:100%; max-height:340px;"></canvas>
 
       <div id="scatterDetails" style="margin-top:10px; font-size:0.9em; color:#555;"></div>
     </section>
 
-    <!-- Charts individuels -->
-    <div class="card chart-card">
-      <h3>CO</h3>
-      <canvas id="coChart" style="height:200px;"></canvas>
-    </div>
+    <!-- Charts individuels disposés en grille responsive -->
+    <section class="grid-cards">
+      <div class="card chart-card">
+        <h3>CO</h3>
+        <canvas id="coChart" style="height:200px;"></canvas>
+      </div>
 
-    <div class="card chart-card">
-      <h3>CO₂</h3>
-      <canvas id="co2Chart" style="height:200px;"></canvas>
-    </div>
+      <div class="card chart-card">
+        <h3>CO₂</h3>
+        <canvas id="co2Chart" style="height:200px;"></canvas>
+      </div>
 
-    <div class="card chart-card">
-      <h3>NO₂</h3>
-      <canvas id="no2Chart" style="height:200px;"></canvas>
-    </div>
+      <div class="card chart-card">
+        <h3>NO₂</h3>
+        <canvas id="no2Chart" style="height:200px;"></canvas>
+      </div>
 
-    <div class="card chart-card">
-      <h3>NH₃</h3>
-      <canvas id="nh3Chart" style="height:200px;"></canvas>
-    </div>
+      <div class="card chart-card">
+        <h3>NH₃</h3>
+        <canvas id="nh3Chart" style="height:200px;"></canvas>
+      </div>
+    </section>
 
   </main>
 </body>
