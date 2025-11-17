@@ -1,113 +1,199 @@
 /* assets/js/gases.js */
 
+/* -----------------------------------------------------
+   GLOBAL CHART INSTANCES
+------------------------------------------------------*/
 let scatterChart = null;
+let coChartInstance = null;
+let co2ChartInstance = null;
+let no2ChartInstance = null;
+let nh3ChartInstance = null;
 
-/* ---------- LOAD LINE CHARTS ---------- */
+/* -----------------------------------------------------
+   LINE CHARTS : CO, CO2, NO2, NH3
+------------------------------------------------------*/
 async function loadCharts() {
   const history = await IndoorAPI.fetchHistory(3600);
   const data = history.series;
   if (!data || data.length === 0) return;
+
   const labels = data.map(d => d.timestamp);
 
-  makeLineChart("coChart", labels, data.map(d => d.measures.co), "CO (ppm)");
-  makeLineChart("co2Chart", labels, data.map(d => d.measures.co2), "CO₂ (ppm)");
-  makeLineChart("no2Chart", labels, data.map(d => d.measures.no2), "NO₂ (ppb)");
-  makeLineChart("nh3Chart", labels, data.map(d => d.measures.nh3), "NH₃ (ppm)");
+  createLineChart("coChart", labels, data.map(d => d.measures.co), "CO (ppm)", "coChartInstance");
+  createLineChart("co2Chart", labels, data.map(d => d.measures.co2), "CO₂ (ppm)", "co2ChartInstance");
+  createLineChart("no2Chart", labels, data.map(d => d.measures.no2), "NO₂ (ppb)", "no2ChartInstance");
+  createLineChart("nh3Chart", labels, data.map(d => d.measures.nh3), "NH₃ (ppm)", "nh3ChartInstance");
 }
 
-function makeLineChart(id, labels, values, label) {
-  const ctx = document.getElementById(id);
-  if (!ctx) return;
-  new Chart(ctx, {
+function createLineChart(canvasId, labels, values, label, instanceName) {
+  const canvas = document.getElementById(canvasId);
+  if (!canvas) return;
+
+  // destroy existing chart if present
+  if (window[instanceName]) window[instanceName].destroy();
+
+  window[instanceName] = new Chart(canvas, {
     type: "line",
     data: { labels, datasets: [{ label, data: values, borderWidth: 2, fill: false }] },
     options: { responsive: true, maintainAspectRatio: false }
   });
 }
 
-/* ---------- SCATTER ---------- */
-async function loadScatter(x, y) {
-  const history = await IndoorAPI.fetchHistory(1800);
-  const series = history.series;
-  if (!series || series.length === 0) return;
+/* -----------------------------------------------------
+   SCATTER DYNAMIQUE
+------------------------------------------------------*/
+function buildScatter(xvar, yvar, series) {
+  const ctx = document.getElementById("gasesScatter");
+  if (!ctx) return;
 
-  const points = series.map(d => ({ x: d.measures[x], y: d.measures[y] }));
+  const points = series.map(d => ({ x: d.measures[xvar], y: d.measures[yvar] }));
 
+  // destroy existing scatter
   if (scatterChart) scatterChart.destroy();
 
-  scatterChart = new Chart(document.getElementById("gasesScatter"), {
+  scatterChart = new Chart(ctx, {
     type: "scatter",
     data: {
       datasets: [{
-        label: `${x.toUpperCase()} vs ${y.toUpperCase()}`,
+        label: `${xvar.toUpperCase()} vs ${yvar.toUpperCase()}`,
         data: points,
         pointRadius: 4,
-        backgroundColor: points.map((_,i) => `rgba(30,100,220,${0.2+0.8*i/points.length})`)
+        pointBackgroundColor: points.map((_, i) => {
+          const alpha = 0.2 + i / points.length * 0.8;
+          return `rgba(30,100,220,${alpha})`;
+        }),
+        showLine: false,
+        parsing: false
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      plugins: {
-        tooltip: { callbacks: { label: item => `${x.toUpperCase()}: ${item.raw.x}, ${y.toUpperCase()}: ${item.raw.y}` } }
-      },
       scales: {
-        x: { title: { display:true, text:x.toUpperCase() } },
-        y: { title: { display:true, text:y.toUpperCase() } }
+        x: { title: { display: true, text: xvar.toUpperCase() } },
+        y: { title: { display: true, text: yvar.toUpperCase() } }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: item => `${xvar}: ${item.raw.x}, ${yvar}: ${item.raw.y}`
+          }
+        }
       }
     }
   });
 
-  updateScatterDetails(x, y, series);
+  updateScatterDetails(xvar, yvar, series);
 }
 
-/* ---------- STATS ---------- */
-function updateScatterDetails(x, y, series) {
-  const valsX = series.map(s => s.measures[x]);
-  const valsY = series.map(s => s.measures[y]);
-  const r = computeCorrelation(valsX, valsY);
-  document.getElementById("scatterDetails").innerHTML = `
-    <strong>Stats :</strong><br>
-    n=${series.length} points<br>
-    Corrélation r=${r.toFixed(3)}<br>
-    ${x}: min ${Math.min(...valsX).toFixed(2)} / max ${Math.max(...valsX).toFixed(2)}<br>
-    ${y}: min ${Math.min(...valsY).toFixed(2)} / max ${Math.max(...valsY).toFixed(2)}
+/* -----------------------------------------------------
+   DETAILS STATISTIQUES
+------------------------------------------------------*/
+function updateScatterDetails(xvar, yvar, series) {
+  const valuesX = series.map(s => s.measures[xvar]);
+  const valuesY = series.map(s => s.measures[yvar]);
+  if (!valuesX.length || !valuesY.length) return;
+
+  const minX = Math.min(...valuesX);
+  const maxX = Math.max(...valuesX);
+  const minY = Math.min(...valuesY);
+  const maxY = Math.max(...valuesY);
+  const r = computeCorrelation(valuesX, valuesY);
+
+  const detailsEl = document.getElementById("scatterDetails");
+  if (!detailsEl) return;
+
+  detailsEl.innerHTML = `
+    <strong>Statistiques :</strong><br>
+    n = ${series.length} points<br>
+    Corrélation r = <strong>${r.toFixed(3)}</strong><br>
+    ${xvar}: min ${minX.toFixed(2)} / max ${maxX.toFixed(2)}<br>
+    ${yvar}: min ${minY.toFixed(2)} / max ${maxY.toFixed(2)}
   `;
 }
 
-function computeCorrelation(a,b) {
-  const n=a.length; if(n<2) return 0;
-  const ma=a.reduce((s,x)=>s+x,0)/n;
-  const mb=b.reduce((s,x)=>s+x,0)/n;
-  let num=0,da2=0,db2=0;
-  for(let i=0;i<n;i++){const da=a[i]-ma,db=b[i]-mb; num+=da*db; da2+=da*da; db2+=db*db;}
-  const den=Math.sqrt(da2*db2); return den===0?0:num/den;
+/* -----------------------------------------------------
+   PEARSON CORRELATION
+------------------------------------------------------*/
+function computeCorrelation(a, b) {
+  const n = a.length;
+  if (n < 2) return 0;
+  const meanA = a.reduce((s, v) => s + v, 0) / n;
+  const meanB = b.reduce((s, v) => s + v, 0) / n;
+  let num = 0, denA = 0, denB = 0;
+  for (let i = 0; i < n; i++) {
+    const da = a[i] - meanA;
+    const db = b[i] - meanB;
+    num += da * db;
+    denA += da * da;
+    denB += db * db;
+  }
+  return denA && denB ? num / Math.sqrt(denA * denB) : 0;
 }
 
-/* ---------- SELECTS ---------- */
-function setupScatterSelector() {
-  const xSelect = document.getElementById("scatterX");
-  const ySelect = document.getElementById("scatterY");
-  const btn = document.getElementById("btn-update-scatter");
-  if(!xSelect||!ySelect||!btn) return;
-
-  const reload = () => loadScatter(xSelect.value, ySelect.value);
-  xSelect.addEventListener("change", reload);
-  ySelect.addEventListener("change", reload);
-  btn.addEventListener("click", reload);
+/* -----------------------------------------------------
+   SELECTION MANUELLE X/Y
+------------------------------------------------------*/
+async function refreshScatterFromSelectors() {
+  const x = document.getElementById("select-x").value;
+  const y = document.getElementById("select-y").value;
+  const history = await IndoorAPI.fetchHistory(1800);
+  buildScatter(x, y, history.series);
+  document.getElementById("scatterTitle").textContent =
+    `Scatter : ${x.toUpperCase()} vs ${y.toUpperCase()}`;
 }
 
-/* ---------- START ---------- */
-window.addEventListener("load", async () => {
-  setupScatterSelector();
-  await loadCharts();
-
+/* -----------------------------------------------------
+   LOAD SCATTER FROM URL (relationships.html → gases)
+------------------------------------------------------*/
+async function loadScatterFromQuery() {
   const params = new URLSearchParams(window.location.search);
   const x = params.get("x") || "co2";
   const y = params.get("y") || "co";
 
-  document.getElementById("scatterX").value = x;
-  document.getElementById("scatterY").value = y;
+  const xSelect = document.getElementById("select-x");
+  const ySelect = document.getElementById("select-y");
+  if (xSelect) xSelect.value = x;
+  if (ySelect) ySelect.value = y;
 
-  await loadScatter(x, y);
+  const history = await IndoorAPI.fetchHistory(1800);
+  if (!history.series || history.series.length === 0) return;
+
+  buildScatter(x, y, history.series);
+  document.getElementById("scatterTitle").textContent =
+    `Scatter : ${x.toUpperCase()} vs ${y.toUpperCase()}`;
+}
+
+/* -----------------------------------------------------
+   SETUP SELECTORS
+------------------------------------------------------*/
+function setupScatterSelector() {
+  const btn = document.getElementById("btn-update-scatter");
+  if (btn) btn.addEventListener("click", refreshScatterFromSelectors);
+
+  const xSelect = document.getElementById("select-x");
+  const ySelect = document.getElementById("select-y");
+  if (!xSelect || !ySelect) return;
+
+  const reload = async () => {
+    const x = xSelect.value;
+    const y = ySelect.value;
+    const params = new URLSearchParams(window.location.search);
+    params.set("x", x);
+    params.set("y", y);
+    window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+    await loadScatterFromQuery();
+  };
+
+  xSelect.addEventListener("change", reload);
+  ySelect.addEventListener("change", reload);
+}
+
+/* -----------------------------------------------------
+   INITIALISATION
+------------------------------------------------------*/
+window.addEventListener("load", async () => {
+  setupScatterSelector();
+  await loadCharts();
+  await loadScatterFromQuery();
 });
