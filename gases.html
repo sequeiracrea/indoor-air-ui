@@ -30,10 +30,10 @@
   </nav>
 
   <main class="container">
-    <!-- SECTION SCATTER DYNAMIQUE -->
-    <section class="card">
-      <h3>Comparer deux variables</h3>
 
+    <!-- Sélection des variables pour scatter -->
+    <section class="card">
+      <h3>Comparer deux gaz / variables</h3>
       <label>X :
         <select id="scatterX">
           <option value="co">CO</option>
@@ -41,11 +41,10 @@
           <option value="no2">NO₂</option>
           <option value="nh3">NH₃</option>
           <option value="temp">Température</option>
-          <option value="rh">Humidité</option>
+          <option value="rh">Humidité relative</option>
           <option value="pres">Pression</option>
         </select>
       </label>
-
       <label style="margin-left:20px">Y :
         <select id="scatterY">
           <option value="co">CO</option>
@@ -53,46 +52,36 @@
           <option value="no2">NO₂</option>
           <option value="nh3">NH₃</option>
           <option value="temp">Température</option>
-          <option value="rh">Humidité</option>
+          <option value="rh">Humidité relative</option>
           <option value="pres">Pression</option>
         </select>
       </label>
+      <button id="btn-update-scatter" class="btn" style="margin-left:20px;">Mettre à jour</button>
 
-      <button id="btn-update-scatter" class="btn" style="margin-left:20px">
-        Mettre à jour
-      </button>
-
-      <h4 id="scatterTitle" style="margin-top:12px;">Scatter</h4>
-
-      <div class="scatter-grid" style="margin-top:10px;">
-        <div class="hist-x"><canvas id="histX" style="height:80px;"></canvas></div>
-        <div class="scatter-main"><canvas id="gasesScatter" style="height:340px;"></canvas></div>
-        <div class="hist-y"><canvas id="histY" style="width:80px;"></canvas></div>
+      <div id="scatterWrapper" style="position:relative; width:100%; max-width:700px; margin-top:20px;">
+        <canvas id="gasesScatter" style="width:100%; height:340px;"></canvas>
       </div>
-
       <div id="scatterDetails" style="margin-top:10px; font-size:0.9em; color:#555;"></div>
     </section>
 
-    <!-- CHARTS INDIVIDUELS -->
-    <div class="card chart-card">
+    <!-- Charts individuels -->
+    <div class="card">
       <h3>CO</h3>
       <canvas id="coChart"></canvas>
     </div>
-
-    <div class="card chart-card">
+    <div class="card">
       <h3>CO₂</h3>
       <canvas id="co2Chart"></canvas>
     </div>
-
-    <div class="card chart-card">
+    <div class="card">
       <h3>NO₂</h3>
       <canvas id="no2Chart"></canvas>
     </div>
-
-    <div class="card chart-card">
+    <div class="card">
       <h3>NH₃</h3>
       <canvas id="nh3Chart"></canvas>
     </div>
+
   </main>
 </body>
 </html>
