@@ -2,24 +2,25 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <title>Relationship Grid — Indoor Air</title>
+  <title>Relationships — Indoor Air</title>
 
   <link rel="stylesheet" href="assets/css/style.css" />
 
-  <!-- Chart.js pour futurs mini-graphs si besoin -->
+  <!-- Chart.js (optionnel) -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
-  <script type="module" src="assets/js/relationships.js"></script>
 </head>
 
 <body>
   <header class="app-header">
     <h1>Relationship Grid</h1>
-    <nav>
-      <a href="index.html">Dashboard</a> |
-      <a href="scatterbar.html">ScatterBar</a> |
-      <a href="gases.html">Gases</a> |
-      <a class="active" href="relationships.html">Relationship</a>
+    <nav class="top-nav">
+      <a href="index.html">Dashboard</a>
+      <a href="timeline.html">Timeline</a>
+      <a href="gases.html">Gases</a>
+      <a href="scatterbar.html">ScatterBar</a>
+      <a href="comfort.html">Confort</a>
+      <a href="events.html">Stabilité</a>
+      <a href="relationships.html" class="active">Relations</a>
     </nav>
   </header>
 
@@ -28,19 +29,22 @@
     <!-- FILTRE -->
     <section class="card">
       <h2>Variables affichées</h2>
-      <p>Sélectionnez les variables à inclure dans la matrice :</p>
+      <p>Sélectionnez les variables à inclure :</p>
 
-      <select id="var-selector" multiple class="select-multi">
-        <option selected>co2</option>
-        <option selected>co</option>
-        <option selected>no2</option>
-        <option selected>nh3</option>
-        <option selected>temp</option>
-        <option selected>rh</option>
-        <option selected>pres</option>
+      <select id="var-selector" multiple class="select-multi" aria-label="Variables">
+        <option value="co2" selected>co2</option>
+        <option value="co" selected>co</option>
+        <option value="no2" selected>no2</option>
+        <option value="nh3" selected>nh3</option>
+        <option value="temp" selected>temp</option>
+        <option value="rh" selected>rh</option>
+        <option value="pres" selected>pres</option>
       </select>
 
-      <button id="apply-vars" class="btn">Mettre à jour</button>
+      <div style="margin-top:10px">
+        <button id="apply-vars" class="btn">Mettre à jour</button>
+        <button id="reset-vars" class="btn" style="background:#6b7280;margin-left:8px">Réinitialiser</button>
+      </div>
     </section>
 
     <!-- MATRICE -->
@@ -51,16 +55,19 @@
     <!-- LEGENDE -->
     <section class="card legend">
       <h2>Légende</h2>
-
       <ul>
         <li><b>Grand cercle</b> → corrélation forte</li>
         <li><b>Couleur bleue</b> → corrélation positive</li>
         <li><b>Couleur violette</b> → corrélation négative</li>
         <li><b>Gris</b> → corrélation faible</li>
-        <li><b>Click</b> → ouvrir scatter détaillé</li>
+        <li><b>Cliquez</b> → ouvrir scatter détaillé</li>
       </ul>
     </section>
 
   </main>
+
+  <!-- API helper + script UMD relationships -->
+  <script src="assets/js/api.js"></script>
+  <script src="assets/js/relationships.js"></script>
 </body>
 </html>
