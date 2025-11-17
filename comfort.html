@@ -1,36 +1,34 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8" />
-  <title>Confort — TCI</title>
-
-  <link rel="stylesheet" href="assets/css/style.css" />
-
-  <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-
-  <script type="module" src="assets/js/comfort.js"></script>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Comfort – TCI</title>
+<link rel="stylesheet" href="assets/css/style.css"/>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
-
 <body>
-  <header class="app-header">
-    <h1>Thermal Comfort Index (TCI)</h1>
-  </header>
+<header class="app-header"><h1>Thermal Comfort (TCI)</h1></header>
+<nav class="top-nav">
+  <a href="index.html">Dashboard</a>
+  <a href="timeline.html">Timeline</a>
+  <a href="gases.html">Gases</a>
+  <a href="scatterbar.html">ScatterBar</a>
+  <a href="comfort.html" class="active">Confort</a>
+  <a href="events.html">Stabilité</a>
+  <a href="relationships.html">Relations</a>
+</nav>
+<main class="container">
+  <div class="card center">
+    <canvas id="radarChart"></canvas>
+  </div>
+  <div class="card">
+    <h3>Conseils</h3>
+    <p id="comfortAdvice">Chargement...</p>
+  </div>
+</main>
 
-  <main class="container">
-    <div class="card center">
-      <canvas id="radarChart" width="320" height="320"></canvas>
-    </div>
-
-    <div class="card">
-      <h2>Interprétation</h2>
-      <p>Plus la surface du radar est grande, meilleur est le confort thermique.</p>
-      <ul>
-        <li>🌡 Température idéale : ~22°C</li>
-        <li>💧 Humidité idéale : 45–55%</li>
-        <li>🔽 Pression : écart minimal autour de 1013 hPa</li>
-      </ul>
-    </div>
-  </main>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/comfort.js"></script>
 </body>
 </html>
