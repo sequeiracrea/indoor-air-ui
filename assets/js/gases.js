@@ -163,23 +163,21 @@ async function loadScatterFromQuery() {
     `Scatter : ${x.toUpperCase()} vs ${y.toUpperCase()}`;
 }
 
-/* -------- SCATTER AVEC COULEUR DISTINCTE X/Y + DENSITÉ -------- */
+
+/* -------- SCATTER AVEC LÉGENDE DYNAMIQUE ET RELOAD -------- */
 async function loadScatterFromQuery() {
   const params = new URLSearchParams(window.location.search);
-  const x = params.get("x");
-  const y = params.get("y");
-
-  if (!x || !y) return;
+  let x = params.get("x") || "co2";
+  let y = params.get("y") || "co";
 
   const titleEl = document.getElementById("scatterTitle");
   if(titleEl) titleEl.textContent = `Scatter : ${x.toUpperCase()} vs ${y.toUpperCase()}`;
 
-  const history = await IndoorAPI.fetchHistory(1800); // 30 min
+  const history = await IndoorAPI.fetchHistory(1800);
   const data = history.series;
-
   if (!data || data.length === 0) return;
 
-  // Préparer les points avec densité simple
+  // Préparer les points et densité
   const points = data.map(d => ({ x: d.measures[x], y: d.measures[y] }));
   const maxDistance = 0.05 * (Math.max(...points.map(p => p.x)) - Math.min(...points.map(p => p.x)));
   const densities = points.map(p => 
@@ -187,19 +185,18 @@ async function loadScatterFromQuery() {
   );
   const maxDensity = Math.max(...densities);
 
-  // Générer couleur mixte X/Y + densité
   const colors = densities.map((d, i) => {
     const intensity = Math.min(1, d / maxDensity);
-    // Couleur pour X en bleu, Y en rouge, mélangé par densité
-    const r = Math.floor(255 * intensity * 0.6 + 200 * (i / points.length) * 0.4); // rouge dominant Y
-    const g = Math.floor(100 * (1 - intensity)); // vert faible pour nuance
-    const b = Math.floor(255 * (1 - intensity) * 0.8); // bleu X
+    const r = Math.floor(255 * intensity * 0.6 + 200 * (i / points.length) * 0.4); // rouge
+    const g = Math.floor(100 * (1 - intensity));
+    const b = Math.floor(255 * (1 - intensity) * 0.8); // bleu
     return `rgb(${r},${g},${b})`;
   });
 
   const ctx = document.getElementById("gasesScatter");
   if (!ctx) return;
 
+  // Détruire chart précédent si présent
   if (ctx.chartInstance) ctx.chartInstance.destroy();
 
   ctx.chartInstance = new Chart(ctx, {
@@ -225,7 +222,16 @@ async function loadScatterFromQuery() {
             label: (item) => `${x.toUpperCase()}: ${item.raw.x} — ${y.toUpperCase()}: ${item.raw.y}`
           }
         },
-        legend: { display: false }
+        legend: {
+          display: true,
+          labels: {
+            generateLabels: (chart) => [
+              { text: `Variable X: ${x.toUpperCase()}`, fillStyle: "blue" },
+              { text: `Variable Y: ${y.toUpperCase()}`, fillStyle: "red" },
+              { text: "Intensité = densité locale", fillStyle: "grey" }
+            ]
+          }
+        }
       },
       scales: {
         x: { title: { display: true, text: x.toUpperCase() } },
@@ -234,6 +240,34 @@ async function loadScatterFromQuery() {
     }
   });
 }
+
+/* -------- LISTENER POUR RELOAD DYNAMIQUE -------- */
+function setupScatterSelector() {
+  const xSelect = document.getElementById("scatterX");
+  const ySelect = document.getElementById("scatterY");
+
+  if (!xSelect || !ySelect) return;
+
+  const reload = () => {
+    const newX = xSelect.value;
+    const newY = ySelect.value;
+    const params = new URLSearchParams(window.location.search);
+    params.set("x", newX);
+    params.set("y", newY);
+    window.history.replaceState({}, "", `${window.location.pathname}?${params.toString()}`);
+    loadScatterFromQuery();
+  };
+
+  xSelect.addEventListener("change", reload);
+  ySelect.addEventListener("change", reload);
+}
+
+/* -------- START -------- */
+window.addEventListener("load", async () => {
+  await loadScatterFromQuery();   
+  setupScatterSelector();          // active le reload dynamique si selects présents
+});
+
 
 
 
