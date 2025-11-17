@@ -5,7 +5,9 @@
   <title>Relationship Grid</title>
   <link rel="stylesheet" href="assets/css/style.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-  <script src="assets/js/relationships.js"></script>
+  <!-- api.js doit être chargé avant relationships.js -->
+  <script src="assets/js/api.js"></script>
+  <script type="module" src="assets/js/relationships.js"></script>
 </head>
 
 <body>
