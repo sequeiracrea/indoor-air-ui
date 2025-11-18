@@ -7,6 +7,56 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="assets/js/events.js" defer></script>
 </head>
+<style>
+  body {
+  font-family: Arial, sans-serif;
+  margin: 0;
+  padding: 0;
+  background-color: #fafafa;
+}
+
+.app-header {
+  background-color: #3498db;
+  color: white;
+  padding: 1rem;
+  text-align: center;
+}
+
+.top-nav {
+  display: flex;
+  gap: 1rem;
+  padding: 0.5rem 1rem;
+  background-color: #eee;
+}
+
+.top-nav a {
+  text-decoration: none;
+  color: #333;
+  padding: 0.3rem 0.6rem;
+  border-radius: 4px;
+}
+
+.top-nav a.active, .top-nav a:hover {
+  background-color: #3498db;
+  color: white;
+}
+
+.container {
+  padding: 1rem;
+}
+
+#stabilitySection {
+  max-width: 1000px;
+  margin: auto;
+}
+
+canvas {
+  background-color: white;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+}
+
+</style>
 <body>
   <header class="app-header">
     <h1>Stabilité de l'environnement – Vue interactive</h1>
