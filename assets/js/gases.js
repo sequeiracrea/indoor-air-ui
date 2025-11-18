@@ -1,14 +1,20 @@
-/* -----------------------------------------------------
-   GASES.JS — VERSION UNIFIÉE & PROPRE
-------------------------------------------------------*/
+/* ----------------------------------------
+   PALETTE DE COULEURS COHÉRENTE
+----------------------------------------*/
+const GAS_COLORS = {
+  co:  "#e74c3c",
+  co2: "#3498db",
+  no2: "#f1c40f",
+  nh3: "#2ecc71",
+  temp: "#e67e22",
+  rh:  "#1abc9c",
+  pres:"#9b59b6"
+};
 
-let scatterChart = null;
-let histXChart = null;
-let histYChart = null;
 
-/* -----------------------------------------------------
-   CHARGEMENT DES COURBES CO / CO2 / NO2 / NH3
-------------------------------------------------------*/
+/* ----------------------------------------
+   CHARTJS : LINE CHARTS DES 4 GAZ
+----------------------------------------*/
 async function loadCharts() {
   const history = await IndoorAPI.fetchHistory(3600);
   const data = history.series;
@@ -16,13 +22,13 @@ async function loadCharts() {
 
   const labels = data.map(d => d.timestamp);
 
-  makeLineChart("coChart", labels, data.map(d => d.measures.co), "CO (ppm)");
-  makeLineChart("co2Chart", labels, data.map(d => d.measures.co2), "CO₂ (ppm)");
-  makeLineChart("no2Chart", labels, data.map(d => d.measures.no2), "NO₂ (ppb)");
-  makeLineChart("nh3Chart", labels, data.map(d => d.measures.nh3), "NH₃ (ppm)");
+  makeLineChart("coChart", labels, data.map(d => d.measures.co), "co");
+  makeLineChart("co2Chart", labels, data.map(d => d.measures.co2), "co2");
+  makeLineChart("no2Chart", labels, data.map(d => d.measures.no2), "no2");
+  makeLineChart("nh3Chart", labels, data.map(d => d.measures.nh3), "nh3");
 }
 
-function makeLineChart(canvasId, labels, values, label) {
+function makeLineChart(canvasId, labels, values, key) {
   const canvas = document.getElementById(canvasId);
   if (!canvas) return;
 
@@ -30,70 +36,88 @@ function makeLineChart(canvasId, labels, values, label) {
     type: "line",
     data: {
       labels,
-      datasets: [{ label, data: values, borderWidth: 2, fill: false }]
+      datasets: [{
+        label: key.toUpperCase(),
+        data: values,
+        borderWidth: 2,
+        fill: false,
+        borderColor: GAS_COLORS[key],
+        backgroundColor: GAS_COLORS[key] + "55",
+        tension: 0.15
+      }]
     },
     options: { responsive: true, maintainAspectRatio: false }
   });
 }
 
-/* -----------------------------------------------------
-   SCATTER + HISTOGRAMMES X/Y
-------------------------------------------------------*/
-function buildScatter(xvar, yvar, series) {
-  const ctxScatter = document.getElementById("gasesScatter");
-  const ctxHistX = document.getElementById("histX");
-  const ctxHistY = document.getElementById("histY");
-  if (!ctxScatter || !ctxHistX || !ctxHistY) return;
 
-  const points = series.map(d => ({
-    x: d.measures[xvar],
-    y: d.measures[yvar]
+/* ----------------------------------------
+   SCATTER + HISTOGRAMMES
+----------------------------------------*/
+
+let scatterChart = null;
+let histXChart = null;
+let histYChart = null;
+
+async function loadScatterFromQuery() {
+  const params = new URLSearchParams(window.location.search);
+  const xVar = params.get("x") || "co2";
+  const yVar = params.get("y") || "co";
+
+  const titleEl = document.getElementById("scatterTitle");
+  if (titleEl)
+    titleEl.textContent = `Scatter : ${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`;
+
+  const history = await IndoorAPI.fetchHistory(1800);
+  const data = history.series;
+  if (!data || data.length === 0) return;
+
+  const points = data.map(d => ({
+    x: d.measures[xVar],
+    y: d.measures[yVar]
   }));
 
-  /* -------- Gradient temporel pour le scatter -------- */
-  const colors = points.map((_, i) => {
-    const t = i / points.length;
-    return `rgba(30, 100, 220, ${0.2 + t * 0.8})`;
-  });
 
-  /* -------- Détruire anciens charts -------- */
+  /* ------- Détruire anciens graphiques ------- */
   if (scatterChart) scatterChart.destroy();
   if (histXChart) histXChart.destroy();
   if (histYChart) histYChart.destroy();
 
-  /* -------- SCATTER PRINCIPAL -------- */
-  scatterChart = new Chart(ctxScatter, {
+
+  /* ------- Création du SCATTER -------*/
+  scatterChart = new Chart(document.getElementById("gasesScatter"), {
     type: "scatter",
     data: {
       datasets: [{
-        label: `${xvar.toUpperCase()} vs ${yvar.toUpperCase()}`,
+        label: `${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`,
         data: points,
         pointRadius: 4,
-        parsing: false,
-        pointBackgroundColor: colors
+        pointBackgroundColor: GAS_COLORS[xVar],
+        pointBorderColor: GAS_COLORS[xVar],
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        x: { title: { display: true, text: xvar.toUpperCase() } },
-        y: { title: { display: true, text: yvar.toUpperCase() } }
+        x: { title: { display: true, text: xVar.toUpperCase() } },
+        y: { title: { display: true, text: yVar.toUpperCase() } }
       },
       plugins: {
         tooltip: {
           callbacks: {
-            label: item => `${xvar}: ${item.raw.x}, ${yvar}: ${item.raw.y}`
+            label: item =>
+              `${xVar}: ${item.raw.x}, ${yVar}: ${item.raw.y}`
           }
         }
       }
     }
   });
 
-  /* -----------------------------------------------------
-     HISTOGRAMMES X ET Y
-  ------------------------------------------------------*/
+
+  /* ------- Histogrammes -------*/
   const bins = 20;
+
   const xValues = points.map(p => p.x);
   const yValues = points.map(p => p.y);
 
@@ -104,20 +128,26 @@ function buildScatter(xvar, yvar, series) {
   const histY = new Array(bins).fill(0);
 
   xValues.forEach(v => {
-    histX[Math.floor(((v - xMin) / (xMax - xMin)) * (bins - 1))]++;
-  });
-  yValues.forEach(v => {
-    histY[Math.floor(((v - yMin) / (yMax - yMin)) * (bins - 1))]++;
+    const idx = Math.floor(((v - xMin) / (xMax - xMin)) * (bins - 1));
+    histX[idx]++;
   });
 
-  /* -------- HISTO X -------- */
-  histXChart = new Chart(ctxHistX, {
+  yValues.forEach(v => {
+    const idx = Math.floor(((v - yMin) / (yMax - yMin)) * (bins - 1));
+    histY[idx]++;
+  });
+
+  histXChart = new Chart(document.getElementById("histX"), {
     type: "bar",
     data: {
-      labels: Array.from({ length: bins }, (_, i) =>
+      labels: Array.from({length: bins}, (_, i) =>
         (xMin + i * (xMax - xMin) / bins).toFixed(2)
       ),
-      datasets: [{ data: histX, backgroundColor: "#3B82F6" }]
+      datasets: [{
+        data: histX,
+        backgroundColor: GAS_COLORS[xVar] + "55",
+        borderColor: GAS_COLORS[xVar]
+      }]
     },
     options: {
       responsive: true,
@@ -126,30 +156,35 @@ function buildScatter(xvar, yvar, series) {
     }
   });
 
-  /* -------- HISTO Y (horizontal) -------- */
-  histYChart = new Chart(ctxHistY, {
+  histYChart = new Chart(document.getElementById("histY"), {
     type: "bar",
+    indexAxis: "y",
     data: {
-      labels: Array.from({ length: bins }, (_, i) =>
+      labels: Array.from({length: bins}, (_, i) =>
         (yMin + i * (yMax - yMin) / bins).toFixed(2)
       ),
-      datasets: [{ data: histY, backgroundColor: "#ef4444" }]
+      datasets: [{
+        data: histY,
+        backgroundColor: GAS_COLORS[yVar] + "55",
+        borderColor: GAS_COLORS[yVar]
+      }]
     },
     options: {
-      indexAxis: "y",
       responsive: true,
       maintainAspectRatio: false,
       plugins: { legend: { display: false } }
     }
   });
 
-  /* -------- Détails statistiques -------- */
-  updateScatterDetails(xvar, yvar, series);
+
+  /* ------- Statistiques -------*/
+  updateScatterDetails(xVar, yVar, data);
 }
 
-/* -----------------------------------------------------
-   CALCUL STATISTIQUES : MIN / MAX / R
-------------------------------------------------------*/
+
+/* ----------------------------------------
+   STATISTIQUES DU SCATTER
+----------------------------------------*/
 function updateScatterDetails(xvar, yvar, series) {
   const valuesX = series.map(s => s.measures[xvar]);
   const valuesY = series.map(s => s.measures[yvar]);
@@ -170,10 +205,14 @@ function updateScatterDetails(xvar, yvar, series) {
   `;
 }
 
-/* Pearson */
+
+/* ----------------------------------------
+   CORRÉLATION (Pearson)
+----------------------------------------*/
 function computeCorrelation(a, b) {
   const n = a.length;
   if (n < 2) return 0;
+
   const ma = a.reduce((s, x) => s + x, 0) / n;
   const mb = b.reduce((s, x) => s + x, 0) / n;
 
@@ -185,46 +224,30 @@ function computeCorrelation(a, b) {
     da2 += da * da;
     db2 += db * db;
   }
-
   const den = Math.sqrt(da2 * db2);
   return den === 0 ? 0 : num / den;
 }
 
-/* -----------------------------------------------------
-   MISE À JOUR VIA BOUTON (MANUELLE)
-------------------------------------------------------*/
+
+/* ----------------------------------------
+   MANUAL BUTTON (Mettre à jour)
+----------------------------------------*/
 async function refreshScatterFromSelectors() {
   const x = document.getElementById("select-x").value;
   const y = document.getElementById("select-y").value;
 
-  const history = await IndoorAPI.fetchHistory(1800);
-  buildScatter(x, y, history.series);
-
-  document.getElementById("scatterTitle").textContent =
-    `Scatter : ${x.toUpperCase()} vs ${y.toUpperCase()}`;
-}
-
-/* -----------------------------------------------------
-   CHARGEMENT VIA URL (depuis relationships.html)
-------------------------------------------------------*/
-async function loadScatterFromQuery() {
   const params = new URLSearchParams(window.location.search);
-  const x = params.get("x") || "co2";
-  const y = params.get("y") || "co";
+  params.set("x", x);
+  params.set("y", y);
+  window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
 
-  document.getElementById("select-x").value = x;
-  document.getElementById("select-y").value = y;
-
-  document.getElementById("scatterTitle").textContent =
-    `Scatter : ${x.toUpperCase()} vs ${y.toUpperCase()}`;
-
-  const history = await IndoorAPI.fetchHistory(1800);
-  buildScatter(x, y, history.series);
+  await loadScatterFromQuery();
 }
 
-/* -----------------------------------------------------
-   DÉMARRAGE
-------------------------------------------------------*/
+
+/* ----------------------------------------
+   START
+----------------------------------------*/
 window.addEventListener("load", async () => {
   await loadCharts();
   await loadScatterFromQuery();
