@@ -94,12 +94,10 @@ const hoverLinesPlugin = {
       ctx.save();
       ctx.strokeStyle = 'rgba(0,0,0,0.2)';
       ctx.lineWidth = 1;
-      // ligne verticale
       ctx.beginPath();
       ctx.moveTo(x, chart.chartArea.top);
       ctx.lineTo(x, chart.chartArea.bottom);
       ctx.stroke();
-      // ligne horizontale
       ctx.beginPath();
       ctx.moveTo(chart.chartArea.left, y);
       ctx.lineTo(chart.chartArea.right, y);
@@ -129,7 +127,6 @@ async function loadScatterFromQuery() {
   document.getElementById("scatterTitle").textContent =
     `Scatter : ${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`;
 
-  // Met à jour les selects pour refléter X/Y actuels
   document.getElementById("select-x").value = xVar;
   document.getElementById("select-y").value = yVar;
 
@@ -249,6 +246,7 @@ function attachAutoUpdate() {
       params.set("y", selectY.value);
       window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
       await loadScatterFromQuery();
+      renderUseCases(); // Mettre à jour le bouton actif
     });
   });
 }
@@ -273,7 +271,6 @@ function renderUseCases() {
     btn.textContent = uc.title;
     btn.title = uc.description;
 
-    // rendre le preset actif si X/Y matchent
     if (uc.x === currentX && uc.y === currentY) {
       btn.classList.add("active");
       descriptionBox.textContent = uc.description;
@@ -290,17 +287,14 @@ function renderUseCases() {
 
       descriptionBox.textContent = uc.description;
 
-      btn.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
-
-
       await loadScatterFromQuery();
-      renderUseCases(); // Mettre à jour les états actifs
+      renderUseCases(); // rafraîchit les boutons actifs
+      btn.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
     });
 
     container.appendChild(btn);
   });
 }
-
 
 /* -------------------------------------------------------
    START
