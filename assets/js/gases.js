@@ -11,6 +11,42 @@ const GAS_COLORS = {
   pres:"#9b59b6"
 };
 
+/* ----------------------------------------
+   UTILITAIRES COULEURS (MIX + LUMINOSITÉ)
+----------------------------------------*/
+
+/* Mélange de deux couleurs (70% / 30%) */
+function mixColors(hexA, hexB, ratio = 0.7) {
+  const a = parseInt(hexA.slice(1), 16);
+  const b = parseInt(hexB.slice(1), 16);
+
+  const r = ((a >> 16) * ratio + (b >> 16) * (1 - ratio)) | 0;
+  const g = (((a >> 8) & 255) * ratio + ((b >> 8) & 255) * (1 - ratio)) | 0;
+  const b2 = ((a & 255) * ratio + (b & 255) * (1 - ratio)) | 0;
+
+  return `rgb(${r},${g},${b2})`;
+}
+
+/* Éclaircir une couleur */
+function lighten(color, amount) {
+  const c = color.match(/\d+/g).map(Number);
+  return `rgb(${Math.min(255, c[0] + amount)},${Math.min(255, c[1] + amount)},${Math.min(255, c[2] + amount)})`;
+}
+
+/* Calcul densité locale */
+function localDensity(points, index, radius = 0.8) {
+  let count = 0;
+  const p = points[index];
+  for (let i = 0; i < points.length; i++) {
+    if (i === index) continue;
+    const dx = p.x - points[i].x;
+    const dy = p.y - points[i].y;
+    if (dx*dx + dy*dy < radius * radius) count++;
+  }
+  return count;
+}
+
+
 
 /* ----------------------------------------
    CHARTJS : LINE CHARTS DES 4 GAZ
@@ -84,35 +120,21 @@ async function loadScatterFromQuery() {
   if (histYChart) histYChart.destroy();
 
 
-  /* ------- Création du SCATTER -------*/
-  scatterChart = new Chart(document.getElementById("gasesScatter"), {
-    type: "scatter",
-    data: {
-      datasets: [{
-        label: `${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`,
-        data: points,
-        pointRadius: 4,
-        pointBackgroundColor: GAS_COLORS[xVar],
-        pointBorderColor: GAS_COLORS[xVar],
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      scales: {
-        x: { title: { display: true, text: xVar.toUpperCase() } },
-        y: { title: { display: true, text: yVar.toUpperCase() } }
-      },
-      plugins: {
-        tooltip: {
-          callbacks: {
-            label: item =>
-              `${xVar}: ${item.raw.x}, ${yVar}: ${item.raw.y}`
-          }
-        }
-      }
-    }
-  });
+/* ------- Création du SCATTER -------*/
+scatterChart = new Chart(document.getElementById("gasesScatter"), {
+  type: "scatter",
+  data: {
+    datasets: [{
+      label: `${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`,
+      data: points,
+      pointRadius: 4,
+      pointBackgroundColor: GAS_COLORS[xVar],
+      pointBorderColor: GAS_COLORS[xVar],
+    }]
+  },
+  ...
+});
+
 
 
   /* ------- Histogrammes -------*/
