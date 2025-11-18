@@ -290,6 +290,9 @@ function renderUseCases() {
 
       descriptionBox.textContent = uc.description;
 
+      btn.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "nearest" });
+
+
       await loadScatterFromQuery();
       renderUseCases(); // Mettre à jour les états actifs
     });
