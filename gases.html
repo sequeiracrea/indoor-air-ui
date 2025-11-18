@@ -20,20 +20,6 @@
       max-height: 340px;
       position: relative;
     }
-    .hist-chart-container {
-      width: 100%;
-      height: 140px;
-      position: relative;
-    }
-    .scatter-row {
-      display: flex;
-      gap: 20px;
-      flex-wrap: wrap;
-      margin-top: 16px;
-    }
-    .scatter-row > div {
-      flex: 1;
-    }
   </style>
 </head>
 
@@ -87,28 +73,28 @@
 
       <h4 id="scatterTitle" style="margin-top:12px;">Scatter</h4>
 
-      <!-- Graphe Scatter -->
+      <!-- Conteneur fixe pour scatter -->
       <div class="fixed-chart-container">
         <canvas id="gasesScatter"></canvas>
       </div>
 
       <!-- Histogrammes X/Y -->
-      <div class="scatter-row">
-        <div>
+      <div class="row" style="gap:20px; margin-top:16px;">
+        <div style="flex:1;">
           <h5>Histogramme X</h5>
-          <div class="hist-chart-container">
+          <div class="fixed-chart-container">
             <canvas id="histX"></canvas>
           </div>
         </div>
-        <div>
+        <div style="flex:1;">
           <h5>Histogramme Y</h5>
-          <div class="hist-chart-container">
+          <div class="fixed-chart-container">
             <canvas id="histY"></canvas>
           </div>
         </div>
       </div>
 
-      <!-- Statistiques -->
+      <!-- Résumé statistiques -->
       <div id="scatterDetails" style="margin-top:12px; font-size:0.9em; color:#555;"></div>
     </section>
 
