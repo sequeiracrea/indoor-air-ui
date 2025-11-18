@@ -41,7 +41,7 @@ function localDensity(points, index, radius = 0.8) {
 }
 
 /* -------------------------------------------------------
-   LINE CHARTS DES 4 GAZ
+   LINE CHARTS DES GAZ
 ---------------------------------------------------------*/
 async function loadCharts() {
   const history = await IndoorAPI.fetchHistory(3600);
@@ -94,14 +94,10 @@ const hoverLinesPlugin = {
       ctx.save();
       ctx.strokeStyle = 'rgba(0,0,0,0.2)';
       ctx.lineWidth = 1;
-      
-      // ligne verticale
       ctx.beginPath();
       ctx.moveTo(x, chart.chartArea.top);
       ctx.lineTo(x, chart.chartArea.bottom);
       ctx.stroke();
-      
-      // ligne horizontale
       ctx.beginPath();
       ctx.moveTo(chart.chartArea.left, y);
       ctx.lineTo(chart.chartArea.right, y);
@@ -116,8 +112,7 @@ async function loadScatterFromQuery() {
   const xVar = params.get("x") || "co2";
   const yVar = params.get("y") || "co";
 
-  document.getElementById("scatterTitle").textContent =
-    `Scatter : ${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`;
+  document.getElementById("scatterTitle").textContent = `Scatter`;
 
   const history = await IndoorAPI.fetchHistory(1800);
   const data = history.series;
@@ -142,56 +137,63 @@ async function loadScatterFromQuery() {
     return lighten(baseColor, bright);
   });
 
-scatterChart = new Chart(document.getElementById("gasesScatter"), {
-  type: "scatter",
-  data: {
-    datasets: [
-      {
-        label: `${xVar} vs ${yVar}`, // dataset principal avec points
-        data: points,
-        pointRadius: 4,
-        backgroundColor: backgroundColors,
-        borderColor: backgroundColors,
-        borderWidth: 0.6,
-        parsing: false
-      },
-      {
-        label: xVar.toUpperCase(), // dataset fantôme pour légende X
-        data: [null],
-        pointRadius: 0,
-        backgroundColor: GAS_COLORS[xVar]
-      },
-      {
-        label: yVar.toUpperCase(), // dataset fantôme pour légende Y
-        data: [null],
-        pointRadius: 0,
-        backgroundColor: GAS_COLORS[yVar]
-      }
-    ]
-  },
-  options: {
-    responsive:true,
-    maintainAspectRatio:false,
-    scales: {
-      x: { title: { display:true, text:xVar.toUpperCase() } },
-      y: { title: { display:true, text:yVar.toUpperCase() } }
-    },
-    plugins: {
-      legend: { display:true },
-      tooltip: {
-        mode:'nearest',
-        intersect:false,
-        callbacks: {
-          label: item => `${xVar}: ${item.raw?.x}, ${yVar}: ${item.raw?.y}`
+  scatterChart = new Chart(document.getElementById("gasesScatter"), {
+    type: "scatter",
+    data: {
+      datasets: [
+        {
+          label: '', // dataset principal, pas de légende
+          data: points,
+          pointRadius: 4,
+          backgroundColor: backgroundColors,
+          borderColor: backgroundColors,
+          borderWidth: 0.6,
+          parsing: false
+        },
+        {
+          label: xVar.toUpperCase(),
+          data: [null],
+          pointRadius: 0,
+          backgroundColor: GAS_COLORS[xVar]
+        },
+        {
+          label: yVar.toUpperCase(),
+          data: [null],
+          pointRadius: 0,
+          backgroundColor: GAS_COLORS[yVar]
         }
-      },
-      hoverLines: {}
+      ]
     },
-    interaction: { mode:'nearest', intersect:false }
-  },
-  plugins: [hoverLinesPlugin]
-});
-
+    options: {
+      responsive:true,
+      maintainAspectRatio:false,
+      scales: {
+        x: { title: { display:true, text:xVar.toUpperCase() } },
+        y: { title: { display:true, text:yVar.toUpperCase() } }
+      },
+      plugins: {
+        legend: {
+          display:true,
+          labels: {
+            filter: function(item) {
+              // afficher seulement les deux variables
+              return item.text === xVar.toUpperCase() || item.text === yVar.toUpperCase();
+            }
+          }
+        },
+        tooltip: {
+          mode:'nearest',
+          intersect:false,
+          callbacks: {
+            label: item => `${xVar}: ${item.raw?.x}, ${yVar}: ${item.raw?.y}`
+          }
+        },
+        hoverLines: {}
+      },
+      interaction: { mode:'nearest', intersect:false }
+    },
+    plugins: [hoverLinesPlugin]
+  });
 
   // Histogrammes
   const bins = 20;
