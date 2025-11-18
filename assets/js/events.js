@@ -1,6 +1,3 @@
-/* ============================================
-   CONFIG
-=============================================== */
 const STABILITY_COLORS = {
   stable: "rgba(0,200,0,0.2)",
   alert: "rgba(255,165,0,0.2)",
@@ -17,17 +14,14 @@ let stabilityChart = null;
 let allPoints = [];
 let timeIndex = 0;
 const maxTimeSteps = 50;
-let animationRunning = true;
 
-/* ============================================
-   SIMULATE DATA
-=============================================== */
+// -------------------------------
+// 1. Génération des données
+// -------------------------------
 function generateAnimatedData(numPoints = 150, steps = maxTimeSteps) {
   const data = [];
-
   for (let t = 0; t < steps; t++) {
     const stepPoints = [];
-
     for (let i = 0; i < numPoints; i++) {
       const SRI = Math.random() * 100;
       const GAQI = Math.random() * 100;
@@ -50,8 +44,8 @@ function generateAnimatedData(numPoints = 150, steps = maxTimeSteps) {
         y: GEI,
         sri: SRI,
         tci: TCI,
-        score: stabilityScore,
-        status
+        status,
+        score: stabilityScore
       });
     }
     data.push(stepPoints);
@@ -59,42 +53,44 @@ function generateAnimatedData(numPoints = 150, steps = maxTimeSteps) {
   return data;
 }
 
-/* ============================================
-   FILTER LOGIC
-=============================================== */
+// -------------------------------
+// 2. Filtre dynamique
+// -------------------------------
 function filterPoints(points, tciMin, tciMax, sriMin, sriMax) {
-  return points.filter(p =>
-    p.tci >= tciMin &&
-    p.tci <= tciMax &&
-    p.sri >= sriMin &&
-    p.sri <= sriMax
+  return points.filter(
+    p => p.tci >= tciMin && p.tci <= tciMax && p.sri >= sriMin && p.sri <= sriMax
   );
 }
 
-/* ============================================
-   BACKGROUND PLUGIN
-=============================================== */
+// -------------------------------
+// 3. Dessin background (zones nucléides)
+// -------------------------------
 function drawBackground(ctx, chart) {
   const { left, right, top, bottom } = chart.chartArea;
   const w = right - left;
   const h = bottom - top;
 
   ctx.save();
+
+  // stable
   ctx.fillStyle = STABILITY_COLORS.stable;
   ctx.fillRect(left, top, w * 0.5, h * 0.5);
 
+  // alert
   ctx.fillStyle = STABILITY_COLORS.alert;
   ctx.fillRect(left + w * 0.5, top, w * 0.5, h * 0.5);
 
+  // unstable
   ctx.fillStyle = STABILITY_COLORS.unstable;
   ctx.fillRect(left, top + h * 0.5, w, h * 0.5);
+
   ctx.restore();
 }
 
-/* ============================================
-   INIT CHART ONCE
-=============================================== */
-function initChart() {
+// -------------------------------
+// 4. Création du chart (une seule fois)
+// -------------------------------
+function createChart() {
   const ctx = document.getElementById("stabilityChart").getContext("2d");
 
   stabilityChart = new Chart(ctx, {
@@ -104,14 +100,13 @@ function initChart() {
         label: "État environnemental",
         data: [],
         pointRadius: 6,
-        pointHoverRadius: 10,
-        pointBackgroundColor: []
+        pointHoverRadius: 10
       }]
     },
     options: {
+      animation: false,
       responsive: true,
       maintainAspectRatio: false,
-      animation: false,
       plugins: {
         legend: { display: false },
         tooltip: {
@@ -124,79 +119,94 @@ function initChart() {
         }
       },
       scales: {
-        x: { title: { display: true, text: "GAQI" }, min: 0, max: 100 },
-        y: { title: { display: true, text: "GEI" }, min: 0, max: 100 }
+        x: { min: 0, max: 100, title: { display: true, text: "GAQI" } },
+        y: { min: 0, max: 100, title: { display: true, text: "GEI" } }
       }
     },
     plugins: [{
-      id: "bg",
+      id: "backgroundPlugin",
       beforeDraw: chart => drawBackground(chart.ctx, chart)
     }]
   });
 }
 
-/* ============================================
-   UPDATE CHART ONLY (NO RECREATION)
-=============================================== */
+// -------------------------------
+// 5. Mise à jour du dataset (animation sans reboot !)
+// -------------------------------
 function updateChart(points) {
-  const ds = stabilityChart.data.datasets[0];
+  const dataset = stabilityChart.data.datasets[0];
 
-  ds.data = points.map(p => ({ x: p.x, y: p.y, extra: p }));
-  ds.pointBackgroundColor = points.map(p => POINT_COLORS[p.status]);
+  dataset.data = points.map(p => ({
+    x: p.x,
+    y: p.y,
+    extra: p,
+    backgroundColor: POINT_COLORS[p.status]
+  }));
+
+  // Chart.js 4 : backgroundColor par point
+  dataset.pointBackgroundColor = points.map(p => POINT_COLORS[p.status]);
 
   stabilityChart.update();
 }
 
-/* ============================================
-   ANIMATION LOOP SAFE
-=============================================== */
-function animate() {
-  if (!animationRunning) return;
+// -------------------------------
+// 6. Boucle animation stable
+// -------------------------------
+function animateStep() {
+  const tciMin = parseFloat(tciMinInput.value);
+  const tciMax = parseFloat(tciMaxInput.value);
+  const sriMin = parseFloat(sriMinInput.value);
+  const sriMax = parseFloat(sriMaxInput.value);
 
-  const tciMin = +document.getElementById("tciMin").value;
-  const tciMax = +document.getElementById("tciMax").value;
-  const sriMin = +document.getElementById("sriMin").value;
-  const sriMax = +document.getElementById("sriMax").value;
+  const stepPoints = filterPoints(allPoints[timeIndex], tciMin, tciMax, sriMin, sriMax);
 
-  const filtered = filterPoints(allPoints[timeIndex], tciMin, tciMax, sriMin, sriMax);
-
-  updateChart(filtered);
+  updateChart(stepPoints);
 
   timeIndex = (timeIndex + 1) % maxTimeSteps;
 
-  setTimeout(() => requestAnimationFrame(animate), 400);
+  setTimeout(() => {
+    requestAnimationFrame(animateStep);
+  }, 400);
 }
 
-/* ============================================
-   APPLY MANUAL FILTERS
-=============================================== */
+// -------------------------------
+// 7. Gestion filtres manuels
+// -------------------------------
 function applyFilters() {
-  const tciMin = +document.getElementById("tciMin").value;
-  const tciMax = +document.getElementById("tciMax").value;
-  const sriMin = +document.getElementById("sriMin").value;
-  const sriMax = +document.getElementById("sriMax").value;
+  const tciMin = parseFloat(tciMinInput.value);
+  const tciMax = parseFloat(tciMaxInput.value);
+  const sriMin = parseFloat(sriMinInput.value);
+  const sriMax = parseFloat(sriMaxInput.value);
 
-  const filtered = filterPoints(allPoints[timeIndex], tciMin, tciMax, sriMin, sriMax);
-  updateChart(filtered);
+  const stepPoints = filterPoints(allPoints[timeIndex], tciMin, tciMax, sriMin, sriMax);
+
+  updateChart(stepPoints);
 }
 
-/* ============================================
-   INIT
-=============================================== */
+// -------------------------------
+// 8. Initialisation
+// -------------------------------
+let tciMinInput, tciMaxInput, sriMinInput, sriMaxInput;
+
 window.addEventListener("load", () => {
-  allPoints = generateAnimatedData();
-  initChart();
-  animate();
+  tciMinInput = document.getElementById("tciMin");
+  tciMaxInput = document.getElementById("tciMax");
+  sriMinInput = document.getElementById("sriMin");
+  sriMaxInput = document.getElementById("sriMax");
+
+  allPoints = generateAnimatedData(150, maxTimeSteps);
+
+  createChart();
+  animateStep();
 
   document.getElementById("applyFilters").addEventListener("click", applyFilters);
 
   document.getElementById("stabilityLegend").innerHTML = `
     <strong>Légende :</strong><br>
-    ✔ Fond vert : stable<br>
-    ⚠ Fond orange : alerte<br>
-    ✖ Fond rouge : instable<br>
-    • Points colorés selon état<br>
-    • Animation dans le temps<br>
-    • Tooltip complet<br>
+    Fond vert : stable<br>
+    Fond orange : alerte<br>
+    Fond rouge : instable<br>
+    Points : états animés<br>
+    Tooltip : indices + score global
   `;
 });
