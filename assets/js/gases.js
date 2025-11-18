@@ -12,16 +12,6 @@ const GAS_COLORS = {
 };
 
 /* -------------------------------------------------------
-   PRESETS / ANALYSES TYPES
----------------------------------------------------------*/
-const SCATTER_PRESETS = [
-  { label: "CO vs CO₂", x: "co", y: "co2", desc: "Analyse de la relation entre CO et CO₂." },
-  { label: "Température vs Humidité", x: "temp", y: "rh", desc: "Visualiser comment la température et l'humidité varient ensemble." },
-  { label: "NO₂ vs Pression", x: "no2", y: "pres", desc: "Étudier l'impact de la pression sur les niveaux de NO₂." },
-  { label: "NH₃ vs CO₂", x: "nh3", y: "co2", desc: "Comparer l'ammoniac et le CO₂." }
-];
-
-/* -------------------------------------------------------
    UTILITAIRES COULEURS
 ---------------------------------------------------------*/
 function mixColors(hexA, hexB, ratio = 0.5) {
@@ -116,6 +106,29 @@ const hoverLinesPlugin = {
   }
 };
 
+/* -------------------------------------------------------
+   PRESETS SCATTER (EXEMPLES D'USAGE)
+---------------------------------------------------------*/
+const SCATTER_PRESETS = [
+  { x: 'co', y: 'co2', label: 'CO / CO₂' },
+  { x: 'no2', y: 'nh3', label: 'NO₂ / NH₃' },
+  { x: 'temp', y: 'rh', label: 'Temp / Humidité' }
+];
+
+/* -------------------------------------------------------
+   SYNCHRONISER LES SELECTS AVEC L'URL
+---------------------------------------------------------*/
+function syncSelectsWithQuery() {
+  const params = new URLSearchParams(window.location.search);
+  const xVar = params.get("x") || SCATTER_PRESETS[0].x;
+  const yVar = params.get("y") || SCATTER_PRESETS[0].y;
+  document.getElementById("select-x").value = xVar;
+  document.getElementById("select-y").value = yVar;
+}
+
+/* -------------------------------------------------------
+   LOAD SCATTER
+---------------------------------------------------------*/
 async function loadScatterFromQuery() {
   const params = new URLSearchParams(window.location.search);
   const xVar = params.get("x") || SCATTER_PRESETS[0].x;
@@ -128,7 +141,10 @@ async function loadScatterFromQuery() {
   const data = history.series;
   if (!data || data.length === 0) return;
 
-  const points = data.map(d => ({ x: d.measures[xVar], y: d.measures[yVar] }));
+  const points = data.map(d => ({
+    x: d.measures[xVar],
+    y: d.measures[yVar]
+  }));
 
   if (scatterChart) scatterChart.destroy();
   if (histXChart) histXChart.destroy();
@@ -168,8 +184,22 @@ async function loadScatterFromQuery() {
           display: true,
           labels: {
             generateLabels: chart => [
-              { text: xVar.toUpperCase(), fillStyle: GAS_COLORS[xVar], strokeStyle: GAS_COLORS[xVar], lineWidth: 2, hidden: false },
-              { text: yVar.toUpperCase(), fillStyle: GAS_COLORS[yVar], strokeStyle: GAS_COLORS[yVar], lineWidth: 2, hidden: false }
+              {
+                text: xVar.toUpperCase(),
+                fillStyle: GAS_COLORS[xVar],
+                strokeStyle: GAS_COLORS[xVar],
+                lineWidth: 2,
+                hidden: false,
+                index: 0
+              },
+              {
+                text: yVar.toUpperCase(),
+                fillStyle: GAS_COLORS[yVar],
+                strokeStyle: GAS_COLORS[yVar],
+                lineWidth: 2,
+                hidden: false,
+                index: 1
+              }
             ]
           }
         },
@@ -238,6 +268,9 @@ function updateScatterDetails(xvar,yvar,series){
   `;
 }
 
+/* -------------------------------------------------------
+   CORRÉLATION (Pearson)
+---------------------------------------------------------*/
 function computeCorrelation(a,b){
   const n=a.length;
   if(n<2) return 0;
@@ -270,66 +303,26 @@ function attachAutoUpdate() {
 }
 
 /* -------------------------------------------------------
-   CREATION DU DROPDOWN DES PRESETS
+   PRESET DROPDOWN
 ---------------------------------------------------------*/
 function createPresetDropdown() {
-  const container = document.createElement("div");
-  container.id = "scatterPresetDropdown";
-  container.style.display = "flex";
-  container.style.alignItems = "center";
-  container.style.gap = "8px";
-  container.style.margin = "12px 0";
-
-  const label = document.createElement("label");
-  label.textContent = "Analyse type : ";
-  container.appendChild(label);
-
-  const select = document.createElement("select");
-  select.className = "select-multi";
-
-  const defaultOption = document.createElement("option");
-  defaultOption.value = "";
-  defaultOption.textContent = "Aucun preset";
-  select.appendChild(defaultOption);
-
-  SCATTER_PRESETS.forEach((p, i) => {
-    const opt = document.createElement("option");
-    opt.value = i;
-    opt.textContent = p.label;
-    select.appendChild(opt);
-  });
-
-  container.appendChild(select);
-
-  const descBox = document.createElement("div");
-  descBox.id = "presetDescBox";
-  descBox.style.padding = "8px";
-  descBox.style.background = "#f5f5f5";
-  descBox.style.border = "1px solid #ccc";
-  descBox.style.borderRadius = "4px";
-  descBox.style.fontSize = "0.9em";
-  descBox.style.flex = "1";
-  descBox.textContent = "Sélectionnez un preset pour afficher la description.";
-  container.appendChild(descBox);
-
-  const scatterSection = document.getElementById("scatterTitle").closest("section");
-  scatterSection.insertBefore(container, scatterSection.querySelector("#scatterTitle"));
-
-  select.addEventListener("change", async () => {
-    const idx = select.value;
-    if (idx === "") {
-      descBox.textContent = "Sélectionnez un preset pour afficher la description.";
-      return;
-    }
-    const preset = SCATTER_PRESETS[idx];
-    descBox.textContent = preset.desc;
-    document.getElementById("select-x").value = preset.x;
-    document.getElementById("select-y").value = preset.y;
-    const params = new URLSearchParams(window.location.search);
-    params.set("x", preset.x);
-    params.set("y", preset.y);
-    window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
-    await loadScatterFromQuery();
+  const container = document.getElementById("presetDropdown");
+  if(!container) return;
+  container.innerHTML = '';
+  SCATTER_PRESETS.forEach(preset => {
+    const btn = document.createElement("button");
+    btn.textContent = preset.label;
+    btn.className = "btn";
+    btn.addEventListener("click", async () => {
+      const params = new URLSearchParams(window.location.search);
+      params.set("x", preset.x);
+      params.set("y", preset.y);
+      window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
+      document.getElementById("select-x").value = preset.x;
+      document.getElementById("select-y").value = preset.y;
+      await loadScatterFromQuery();
+    });
+    container.appendChild(btn);
   });
 }
 
@@ -338,7 +331,8 @@ function createPresetDropdown() {
 ---------------------------------------------------------*/
 window.addEventListener("load", async ()=>{
   await loadCharts();
+  syncSelectsWithQuery();      // synchroniser selects avec URL
   await loadScatterFromQuery();
-  attachAutoUpdate();
-  createPresetDropdown();
+  attachAutoUpdate();           // mise à jour auto au changement de select
+  createPresetDropdown();       // créer le menu de presets
 });
