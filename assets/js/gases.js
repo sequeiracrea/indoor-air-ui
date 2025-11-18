@@ -112,12 +112,6 @@ async function loadScatterFromQuery() {
   const xVar = params.get("x") || "co2";
   const yVar = params.get("y") || "co";
 
-  // --- Synchronisation des select avec URL (relations page) ---
-  const selectX = document.getElementById("select-x");
-  const selectY = document.getElementById("select-y");
-  if(selectX) selectX.value = xVar;
-  if(selectY) selectY.value = yVar;
-
   document.getElementById("scatterTitle").textContent =
     `Scatter : ${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`;
 
@@ -287,10 +281,65 @@ function attachAutoUpdate() {
 }
 
 /* -------------------------------------------------------
+   PRÉSETS / CAS D'USAGE
+---------------------------------------------------------*/
+const SCATTER_PRESETS = [
+  { name:"Pollution intérieure", x:"co2", y:"co", description:"Visualiser corrélation entre ventilation (CO₂) et CO" },
+  { name:"Pollution trafic", x:"no2", y:"co", description:"Étudier l’impact du trafic sur la pollution intérieure" },
+  { name:"Polluants croisés", x:"co2", y:"no2", description:"Identifier interaction entre différents polluants" },
+  { name:"Confort thermique", x:"temp", y:"rh", description:"Suivi de la sensation thermique (Température / Humidité)" },
+  { name:"Pression vs Pollution", x:"pres", y:"no2", description:"Voir influence de la pression sur dispersion des gaz" },
+  { name:"Agriculture / NH₃", x:"nh3", y:"co2", description:"Observer impact de l’ammoniac sur l’air intérieur" },
+  { name:"Température et polluant", x:"temp", y:"co2", description:"Étudier dépendance des polluants sur la température" },
+  { name:"Humidité et polluant", x:"rh", y:"nh3", description:"Visualiser influence de l’humidité sur certains polluants" }
+];
+
+function attachPresetMenu(presetContainerId="scatterPresets") {
+  const container = document.getElementById(presetContainerId);
+  if (!container) return;
+
+  const select = document.createElement("select");
+  select.id = "preset-select";
+  select.style.marginBottom = "8px";
+  SCATTER_PRESETS.forEach((preset, idx)=>{
+    const opt = document.createElement("option");
+    opt.value = idx;
+    opt.textContent = preset.name;
+    select.appendChild(opt);
+  });
+  container.appendChild(select);
+
+  const desc = document.createElement("div");
+  desc.id = "preset-description";
+  desc.style.fontSize = "0.85em";
+  desc.style.color = "#555";
+  desc.style.marginBottom = "12px";
+  container.appendChild(desc);
+
+  select.addEventListener("change", async ()=>{
+    const preset = SCATTER_PRESETS[select.value];
+    if (!preset) return;
+    document.getElementById("select-x").value = preset.x;
+    document.getElementById("select-y").value = preset.y;
+    desc.textContent = preset.description;
+
+    const params = new URLSearchParams(window.location.search);
+    params.set("x", preset.x);
+    params.set("y", preset.y);
+    window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
+    await loadScatterFromQuery();
+  });
+
+  // Initialiser sur le premier preset
+  select.dispatchEvent(new Event("change"));
+}
+
+/* -------------------------------------------------------
    START
 ---------------------------------------------------------*/
 window.addEventListener("load", async ()=>{
   await loadCharts();
   await loadScatterFromQuery();
-  attachAutoUpdate(); // activation du rafraîchissement automatique
+  attachAutoUpdate();
+  attachPresetMenu("scatterPresets"); // Menu des cas d'usage
 });
