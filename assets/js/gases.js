@@ -146,7 +146,7 @@ scatterChart = new Chart(document.getElementById("gasesScatter"), {
   type: "scatter",
   data: {
     datasets: [
-      {
+     /* {
         label: `${xVar} vs ${yVar}`, // dataset principal avec points
         data: points,
         pointRadius: 4,
@@ -154,7 +154,7 @@ scatterChart = new Chart(document.getElementById("gasesScatter"), {
         borderColor: backgroundColors,
         borderWidth: 0.6,
         parsing: false
-      },
+      },*/
       {
         label: xVar.toUpperCase(), // dataset fantôme pour légende X
         data: [null],
