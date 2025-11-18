@@ -1,269 +1,262 @@
-/* -------------------------------------------------------
-   PALETTE DE COULEURS COHÉRENTE
----------------------------------------------------------*/
+// ------------------------------------------------------
+// CONFIG : couleurs associées aux gaz
+// ------------------------------------------------------
 const GAS_COLORS = {
-  co:  "#e74c3c",
-  co2: "#3498db",
-  no2: "#f1c40f",
-  nh3: "#2ecc71",
-  temp: "#e67e22",
-  rh:  "#1abc9c",
-  pres:"#9b59b6"
+  co2: "#4CAF50",
+  no2: "#FF5722",
+  o3: "#3F51B5",
+  pm25: "#9C27B0",
+  pm10: "#FFC107",
+  temp: "#E91E63",
+  pres: "#795548",
+  rh: "#03A9F4",
+  voc: "#8BC34A"
 };
 
-/* -------------------------------------------------------
-   PRESETS / CAS D’USAGE
----------------------------------------------------------*/
-const USE_CASES = [
-  { x:"co", y:"co2", name:"CO vs CO₂", desc:"Analyse de la corrélation entre CO et CO₂ dans l’air." },
-  { x:"no2", y:"rh", name:"NO₂ vs Humidité", desc:"Voir comment l’humidité relative influence le NO₂." },
-  { x:"temp", y:"pres", name:"Température vs Pression", desc:"Évaluer la relation température / pression." },
-  { x:"nh3", y:"co", name:"NH₃ vs CO", desc:"Observer la corrélation NH₃ / CO." }
+// ------------------------------------------------------
+// PRESETS D’ANALYSE
+// ------------------------------------------------------
+const PRESETS = [
+  {
+    id: "pollution_vs_meteo",
+    name: "Polluants vs Facteurs Météo",
+    x: "no2",
+    y: "temp",
+    description: "Analyse de l’effet de la température sur les polluants urbains."
+  },
+  {
+    id: "humidité_vs_particules",
+    name: "Humidité vs Particules",
+    x: "rh",
+    y: "pm25",
+    description: "Met en lumière l’impact de l’humidité sur la concentration en particules fines."
+  },
+  {
+    id: "pression_vs_o3",
+    name: "Pression atmosphérique vs Ozone",
+    x: "pres",
+    y: "o3",
+    description: "Analyse des comportements de l’ozone selon les variations de pression."
+  }
 ];
 
-/* -------------------------------------------------------
-   UTILITAIRES COULEURS
----------------------------------------------------------*/
-function mixColors(hexA, hexB, ratio = 0.5) {
-  const a = parseInt(hexA.slice(1), 16);
-  const b = parseInt(hexB.slice(1), 16);
-  const r = ((a >> 16) * ratio + (b >> 16) * (1 - ratio)) | 0;
-  const g = (((a >> 8) & 255) * ratio + ((b >> 8) & 255) * (1 - ratio)) | 0;
-  const b2 = ((a & 255) * ratio + (b & 255) * (1 - ratio)) | 0;
-  return `rgb(${r},${g},${b2})`;
-}
-
-function lighten(color, amount) {
-  const c = color.match(/\d+/g).map(Number);
-  return `rgb(${Math.min(255, c[0]+amount)},${Math.min(255, c[1]+amount)},${Math.min(255, c[2]+amount)})`;
-}
-
-function localDensity(points, index, radius = 0.8) {
-  let count = 0;
-  const p = points[index];
-  for (let i = 0; i < points.length; i++) {
-    if (i === index) continue;
-    const dx = p.x - points[i].x;
-    const dy = p.y - points[i].y;
-    if (dx*dx + dy*dy < radius*radius) count++;
-  }
-  return count;
-}
-
-/* -------------------------------------------------------
-   LINE CHARTS DES 4 GAZ
----------------------------------------------------------*/
-async function loadCharts() {
-  const history = await IndoorAPI.fetchHistory(3600);
-  const data = history.series;
-  if (!data || data.length === 0) return;
-  const labels = data.map(d => d.timestamp);
-  makeLineChart("coChart", labels, data.map(d => d.measures.co), "co");
-  makeLineChart("co2Chart", labels, data.map(d => d.measures.co2), "co2");
-  makeLineChart("no2Chart", labels, data.map(d => d.measures.no2), "no2");
-  makeLineChart("nh3Chart", labels, data.map(d => d.measures.nh3), "nh3");
-}
-
-function makeLineChart(canvasId, labels, values, key) {
-  const canvas = document.getElementById(canvasId);
-  if (!canvas) return;
-  new Chart(canvas, {
-    type: "line",
-    data: { labels, datasets:[{label:key.toUpperCase(), data:values, borderWidth:2, fill:false, borderColor:GAS_COLORS[key], backgroundColor:GAS_COLORS[key]+"55", tension:0.15}] },
-    options: { responsive:true, maintainAspectRatio:false }
-  });
-}
-
-/* -------------------------------------------------------
-   SCATTER + HISTOGRAMMES + LIGNES SURVOLE
----------------------------------------------------------*/
-let scatterChart = null;
-let histXChart = null;
-let histYChart = null;
-
-const hoverLinesPlugin = {
-  id: 'hoverLines',
-  afterDraw: chart => {
-    if(chart.tooltip?._active && chart.tooltip._active.length){
-      const ctx = chart.ctx;
-      const x = chart.tooltip._active[0].element.x;
-      const y = chart.tooltip._active[0].element.y;
-      ctx.save();
-      ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(x, chart.chartArea.top);
-      ctx.lineTo(x, chart.chartArea.bottom);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(chart.chartArea.left, y);
-      ctx.lineTo(chart.chartArea.right, y);
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
-};
-
-/* -------------------------------------------------------
-   LOAD SCATTER
----------------------------------------------------------*/
-async function loadScatterFromQuery() {
+// ------------------------------------------------------
+// Récupération sélection depuis Relationships si existe
+// ------------------------------------------------------
+function getSelectionFromQuery() {
   const params = new URLSearchParams(window.location.search);
 
-  // Détection preset actif ou sélection manuelle
-  let preset = USE_CASES.find(p=>p.x===params.get("x") && p.y===params.get("y"));
-  if(!preset) preset = USE_CASES[0]; // par défaut
-  const xVar = params.get("x") || preset.x;
-  const yVar = params.get("y") || preset.y;
+  if (params.has("x") && params.has("y")) {
+    return {
+      x: params.get("x"),
+      y: params.get("y")
+    };
+  }
+  return null;
+}
 
-  // Mettre à jour les selects
-  document.getElementById("select-x").value = xVar;
-  document.getElementById("select-y").value = yVar;
+// ------------------------------------------------------
+// Variables globales
+// ------------------------------------------------------
+let dataRecords = [];
+let histogramX = null;
+let histogramY = null;
+let scatterChart = null;
 
-  // Titre
-  document.getElementById("scatterTitle").textContent = `Scatter : ${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`;
+// ------------------------------------------------------
+// Initialisation chargement data
+// ------------------------------------------------------
+document.addEventListener("DOMContentLoaded", () => {
+  fetch("data/dataset.json")
+    .then(res => res.json())
+    .then(json => {
+      dataRecords = json;
+      initUI();
+      buildAllCharts();
+    });
+});
 
-  // Description du preset
-  const presetDesc = USE_CASES.find(p=>p.x===xVar && p.y===yVar)?.desc || "";
-  document.getElementById("scatterUseCaseDescription").textContent = presetDesc;
+// ------------------------------------------------------
+// UI : initialise presets et sélection X/Y
+// ------------------------------------------------------
+function initUI() {
+  const selX = document.getElementById("select-x");
+  const selY = document.getElementById("select-y");
+  const selPreset = document.getElementById("preset-select");
+  const presetDescription = document.getElementById("preset-description");
 
-  const history = await IndoorAPI.fetchHistory(1800);
-  const data = history.series;
-  if (!data || data.length === 0) return;
+  // Remplir presets
+  PRESETS.forEach(p => {
+    const opt = document.createElement("option");
+    opt.value = p.id;
+    opt.textContent = p.name;
+    selPreset.appendChild(opt);
+  });
 
-  const points = data.map(d => ({x:d.measures[xVar], y:d.measures[yVar]}));
+  // Créer options variables gas
+  Object.keys(GAS_COLORS).forEach(g => {
+    let o1 = document.createElement("option");
+    o1.value = g;
+    o1.textContent = g.toUpperCase();
+    selX.appendChild(o1);
+
+    let o2 = document.createElement("option");
+    o2.value = g;
+    o2.textContent = g.toUpperCase();
+    selY.appendChild(o2);
+  });
+
+  // Gestion du preset
+  selPreset.addEventListener("change", () => {
+    const preset = PRESETS.find(p => p.id === selPreset.value);
+    if (!preset) return;
+
+    selX.value = preset.x;
+    selY.value = preset.y;
+
+    presetDescription.textContent = preset.description;
+    buildAllCharts();
+  });
+
+  // Mise à jour en direct si l’utilisateur change X ou Y
+  selX.addEventListener("change", () => {
+    selPreset.value = "";
+    presetDescription.textContent = "";
+    buildAllCharts();
+  });
+
+  selY.addEventListener("change", () => {
+    selPreset.value = "";
+    presetDescription.textContent = "";
+    buildAllCharts();
+  });
+
+  // Appliquer la sélection venant de Relationship page
+  const external = getSelectionFromQuery();
+  if (external) {
+    selX.value = external.x;
+    selY.value = external.y;
+    selPreset.value = "";
+    presetDescription.textContent = "";
+  }
+}
+
+// ------------------------------------------------------
+// Construction complète des charts
+// ------------------------------------------------------
+function buildAllCharts() {
+  const xVar = document.getElementById("select-x").value;
+  const yVar = document.getElementById("select-y").value;
+
+  buildHistogram("histogram-x", xVar, true);
+  buildHistogram("histogram-y", yVar, false);
+  buildScatter(xVar, yVar);
+}
+
+// ------------------------------------------------------
+// HISTOGRAMMES
+// ------------------------------------------------------
+function buildHistogram(canvasId, variable, isX) {
+  const ctx = document.getElementById(canvasId).getContext("2d");
+  const values = dataRecords.map(r => r[variable]);
+
+  if ((isX && histogramX) || (!isX && histogramY)) {
+    (isX ? histogramX : histogramY).destroy();
+  }
+
+  const chart = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels: values,
+      datasets: [{
+        label: variable.toUpperCase(),
+        data: values,
+        backgroundColor: GAS_COLORS[variable]
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false
+    }
+  });
+
+  if (isX) histogramX = chart;
+  else histogramY = chart;
+}
+
+// ------------------------------------------------------
+// SCATTER avec doubles légendes personnalisées
+// ------------------------------------------------------
+function buildScatter(xVar, yVar) {
+  const ctx = document.getElementById("scatter-plot").getContext("2d");
 
   if (scatterChart) scatterChart.destroy();
-  if (histXChart) histXChart.destroy();
-  if (histYChart) histYChart.destroy();
 
-  const backgroundColors = points.map((p,i)=>{
-    const t = i / points.length;
-    const density = localDensity(points,i);
-    const mixRatio = Math.min(0.9, Math.max(0.1, t + density*0.02));
-    const baseColor = mixColors(GAS_COLORS[xVar], GAS_COLORS[yVar], mixRatio);
-    return lighten(baseColor, Math.min(50,density*5));
-  });
+  const points = dataRecords.map(r => ({
+    x: r[xVar],
+    y: r[yVar],
+    backgroundColor: mixColors(GAS_COLORS[xVar], GAS_COLORS[yVar], 0.5),
+    borderColor: mixColors(GAS_COLORS[xVar], GAS_COLORS[yVar], 0.5)
+  }));
 
-  scatterChart = new Chart(document.getElementById("gasesScatter"), {
-    type:"scatter",
-    data: { datasets:[{label:`${xVar.toUpperCase()} / ${yVar.toUpperCase()}`, data:points, pointRadius:4, backgroundColor:backgroundColors, borderColor:backgroundColors, borderWidth:0.6, parsing:false}] },
-    options: {
-      responsive:true,
-      maintainAspectRatio:false,
-      scales: { x:{title:{display:true,text:xVar.toUpperCase()}}, y:{title:{display:true,text:yVar.toUpperCase()}} },
-      plugins: { legend:{display:true}, tooltip:{mode:'nearest', intersect:false, callbacks:{label:item=>`${xVar}: ${item.raw?.x}, ${yVar}: ${item.raw?.y}`}}, hoverLines:{} },
-      interaction:{mode:'nearest', intersect:false}
+  scatterChart = new Chart(ctx, {
+    type: "scatter",
+    data: {
+      datasets: [
+        {
+          label: "",   // IMPORTANT : empêche la création de la 3e légende
+          data: points,
+          pointRadius: 5
+        }
+      ]
     },
-    plugins:[hoverLinesPlugin]
-  });
-
-  // Histogrammes
-  const bins = 20;
-  const xValues = points.map(p=>p.x);
-  const yValues = points.map(p=>p.y);
-  const xMin = Math.min(...xValues), xMax=Math.max(...xValues);
-  const yMin = Math.min(...yValues), yMax=Math.max(...yValues);
-  const histX = new Array(bins).fill(0);
-  const histY = new Array(bins).fill(0);
-  xValues.forEach(v=>{ const idx=Math.floor(((v-xMin)/(xMax-xMin))*(bins-1)); histX[idx]++; });
-  yValues.forEach(v=>{ const idx=Math.floor(((v-yMin)/(yMax-yMin))*(bins-1)); histY[idx]++; });
-
-  histXChart = new Chart(document.getElementById("histX"), {
-    type:"bar",
-    data:{ labels:Array.from({length:bins},(_,i)=>(xMin + i*(xMax-xMin)/bins).toFixed(2)), datasets:[{data:histX, backgroundColor:GAS_COLORS[xVar]+"55", borderColor:GAS_COLORS[xVar]}] },
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}}
-  });
-
-  histYChart = new Chart(document.getElementById("histY"), {
-    type:"bar",
-    indexAxis:"y",
-    data:{ labels:Array.from({length:bins},(_,i)=>(yMin + i*(yMax-yMin)/bins).toFixed(2)), datasets:[{data:histY, backgroundColor:GAS_COLORS[yVar]+"55", borderColor:GAS_COLORS[yVar]}] },
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}}
-  });
-
-  updateScatterDetails(xVar,yVar,data);
-}
-
-/* -------------------------------------------------------
-   STATISTIQUES DU SCATTER
----------------------------------------------------------*/
-function updateScatterDetails(xvar,yvar,series){
-  const valuesX = series.map(s=>s.measures[xvar]);
-  const valuesY = series.map(s=>s.measures[yvar]);
-  const minX = Math.min(...valuesX), maxX=Math.max(...valuesX);
-  const minY = Math.min(...valuesY), maxY=Math.max(...valuesY);
-  const r = computeCorrelation(valuesX,valuesY);
-  document.getElementById("scatterDetails").innerHTML=`
-    <strong>Statistiques :</strong><br>
-    n = ${series.length} points<br>
-    Corrélation r = <strong>${r.toFixed(3)}</strong><br>
-    ${xvar}: min ${minX.toFixed(2)} / max ${maxX.toFixed(2)}<br>
-    ${yvar}: min ${minY.toFixed(2)} / max ${maxY.toFixed(2)}
-  `;
-}
-
-/* -------------------------------------------------------
-   CORRÉLATION (Pearson)
----------------------------------------------------------*/
-function computeCorrelation(a,b){
-  const n = a.length;
-  if(n<2) return 0;
-  const ma = a.reduce((s,x)=>s+x,0)/n;
-  const mb = b.reduce((s,x)=>s+x,0)/n;
-  let num=0, da2=0, db2=0;
-  for(let i=0;i<n;i++){
-    const da = a[i]-ma, db = b[i]-mb;
-    num += da*db; da2 += da*da; db2 += db*db;
-  }
-  const den = Math.sqrt(da2*db2);
-  return den===0 ? 0 : num/den;
-}
-
-/* -------------------------------------------------------
-   GÉNÉRATION DES BOUTONS USE CASE
----------------------------------------------------------*/
-function renderUseCases() {
-  const container = document.getElementById("scatterUseCases");
-  container.innerHTML = "";
-  USE_CASES.forEach(p=>{
-    const btn = document.createElement("button");
-    btn.className="btn-usecase";
-    btn.textContent=p.name;
-    btn.addEventListener("click", async ()=>{
-      const params = new URLSearchParams(window.location.search);
-      params.set("x",p.x);
-      params.set("y",p.y);
-      window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
-      await loadScatterFromQuery();
-    });
-    container.appendChild(btn);
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: true,
+          labels: {
+            generateLabels: chart => [
+              {
+                text: xVar.toUpperCase(),
+                fillStyle: GAS_COLORS[xVar],
+                strokeStyle: GAS_COLORS[xVar],
+                lineWidth: 2
+              },
+              {
+                text: yVar.toUpperCase(),
+                fillStyle: GAS_COLORS[yVar],
+                strokeStyle: GAS_COLORS[yVar],
+                lineWidth: 2
+              }
+            ]
+          }
+        }
+      },
+      scales: {
+        x: { title: { display: true, text: xVar.toUpperCase() } },
+        y: { title: { display: true, text: yVar.toUpperCase() } }
+      }
+    }
   });
 }
 
-/* -------------------------------------------------------
-   MISE À JOUR AUTOMATIQUE SUR CHANGEMENT DE SELECT
----------------------------------------------------------*/
-function attachAutoUpdate() {
-  const selectX = document.getElementById("select-x");
-  const selectY = document.getElementById("select-y");
-  [selectX, selectY].forEach(sel=>{
-    sel.addEventListener("change", async ()=>{
-      const params = new URLSearchParams(window.location.search);
-      params.set("x", selectX.value);
-      params.set("y", selectY.value);
-      window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
-      await loadScatterFromQuery();
-    });
-  });
-}
+// ------------------------------------------------------
+// Mélange 2 couleurs (pour la teinte des points)
+// ------------------------------------------------------
+function mixColors(c1, c2, ratio) {
+  const r1 = parseInt(c1.substr(1, 2), 16);
+  const g1 = parseInt(c1.substr(3, 2), 16);
+  const b1 = parseInt(c1.substr(5, 2), 16);
 
-/* -------------------------------------------------------
-   START
----------------------------------------------------------*/
-window.addEventListener("load", async ()=>{
-  await loadCharts();
-  renderUseCases();     // Générer les boutons de presets
-  attachAutoUpdate();   // Activation auto sur select
-  await loadScatterFromQuery();
-});
+  const r2 = parseInt(c2.substr(1, 2), 16);
+  const g2 = parseInt(c2.substr(3, 2), 16);
+  const b2 = parseInt(c2.substr(5, 2), 16);
+
+  const r = Math.floor(r1 * (1 - ratio) + r2 * ratio);
+  const g = Math.floor(g1 * (1 - ratio) + g2 * ratio);
+  const b = Math.floor(b1 * (1 - ratio) + b2 * ratio);
+
+  return `rgb(${r}, ${g}, ${b})`;
+}
