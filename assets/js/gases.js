@@ -41,7 +41,7 @@ function localDensity(points, index, radius = 0.8) {
 }
 
 /* -------------------------------------------------------
-   LINE CHARTS DES GAZ
+   LINE CHARTS DES 4 GAZ
 ---------------------------------------------------------*/
 async function loadCharts() {
   const history = await IndoorAPI.fetchHistory(3600);
@@ -94,10 +94,14 @@ const hoverLinesPlugin = {
       ctx.save();
       ctx.strokeStyle = 'rgba(0,0,0,0.2)';
       ctx.lineWidth = 1;
+
+      // ligne verticale
       ctx.beginPath();
       ctx.moveTo(x, chart.chartArea.top);
       ctx.lineTo(x, chart.chartArea.bottom);
       ctx.stroke();
+
+      // ligne horizontale
       ctx.beginPath();
       ctx.moveTo(chart.chartArea.left, y);
       ctx.lineTo(chart.chartArea.right, y);
@@ -107,12 +111,21 @@ const hoverLinesPlugin = {
   }
 };
 
-async function loadScatterFromQuery() {
+// Met à jour les selects X/Y selon l'URL (utile depuis la page relations)
+function updateSelectorsFromURL() {
   const params = new URLSearchParams(window.location.search);
-  const xVar = params.get("x") || "co2";
-  const yVar = params.get("y") || "co";
+  const x = params.get("x");
+  const y = params.get("y");
+  if(x) document.getElementById("select-x").value = x;
+  if(y) document.getElementById("select-y").value = y;
+}
 
-  document.getElementById("scatterTitle").textContent = `Scatter`;
+async function loadScatterFromQuery() {
+  const xVar = document.getElementById("select-x").value;
+  const yVar = document.getElementById("select-y").value;
+
+  document.getElementById("scatterTitle").textContent =
+    `Scatter : ${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`;
 
   const history = await IndoorAPI.fetchHistory(1800);
   const data = history.series;
@@ -142,7 +155,7 @@ async function loadScatterFromQuery() {
     data: {
       datasets: [
         {
-          label: '', // dataset principal, pas de légende
+          label: `${xVar} points`, // dataset principal
           data: points,
           pointRadius: 4,
           backgroundColor: backgroundColors,
@@ -151,13 +164,13 @@ async function loadScatterFromQuery() {
           parsing: false
         },
         {
-          label: xVar.toUpperCase(),
+          label: xVar.toUpperCase(), // légende X
           data: [null],
           pointRadius: 0,
           backgroundColor: GAS_COLORS[xVar]
         },
         {
-          label: yVar.toUpperCase(),
+          label: yVar.toUpperCase(), // légende Y
           data: [null],
           pointRadius: 0,
           backgroundColor: GAS_COLORS[yVar]
@@ -172,15 +185,7 @@ async function loadScatterFromQuery() {
         y: { title: { display:true, text:yVar.toUpperCase() } }
       },
       plugins: {
-        legend: {
-          display:true,
-          labels: {
-            filter: function(item) {
-              // afficher seulement les deux variables
-              return item.text === xVar.toUpperCase() || item.text === yVar.toUpperCase();
-            }
-          }
-        },
+        legend: { display:true },
         tooltip: {
           mode:'nearest',
           intersect:false,
@@ -278,6 +283,7 @@ async function refreshScatterFromSelectors(){
    START
 ---------------------------------------------------------*/
 window.addEventListener("load", async ()=>{
+  updateSelectorsFromURL(); // <-- Met à jour selects depuis URL
   await loadCharts();
   await loadScatterFromQuery();
   document.getElementById("btn-update-scatter").addEventListener("click", refreshScatterFromSelectors);
