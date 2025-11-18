@@ -316,6 +316,26 @@ function attachPresetMenu(presetContainerId="scatterPresets") {
   desc.style.marginBottom = "12px";
   container.appendChild(desc);
 
+  const params = new URLSearchParams(window.location.search);
+  const xParam = params.get("x");
+  const yParam = params.get("y");
+
+  // Cherche un preset correspondant aux paramètres de l'URL
+  let initialIdx = 0;
+  if (xParam && yParam) {
+    const matchIdx = SCATTER_PRESETS.findIndex(p => p.x === xParam && p.y === yParam);
+    if (matchIdx >= 0) initialIdx = matchIdx;
+    else {
+      // Sinon applique directement les valeurs X/Y de l'URL
+      document.getElementById("select-x").value = xParam;
+      document.getElementById("select-y").value = yParam;
+      desc.textContent = `Analyse personnalisée : ${xParam.toUpperCase()} / ${yParam.toUpperCase()}`;
+      loadScatterFromQuery();
+    }
+  }
+
+  select.value = initialIdx;
+
   select.addEventListener("change", async ()=>{
     const preset = SCATTER_PRESETS[select.value];
     if (!preset) return;
@@ -330,9 +350,10 @@ function attachPresetMenu(presetContainerId="scatterPresets") {
     await loadScatterFromQuery();
   });
 
-  // Initialiser sur le premier preset
-  select.dispatchEvent(new Event("change"));
+  // Initialiser sur le preset choisi
+  if (!xParam || !yParam || initialIdx >= 0) select.dispatchEvent(new Event("change"));
 }
+
 
 /* -------------------------------------------------------
    START
