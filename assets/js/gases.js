@@ -12,6 +12,30 @@ const GAS_COLORS = {
 };
 
 /* -------------------------------------------------------
+   PRÉSETS SCATTER LISIBLES
+---------------------------------------------------------*/
+const SCATTER_PRESETS = [
+  {
+    name: "CO vs CO₂",
+    x: "co",
+    y: "co2",
+    description: "Analyse de la corrélation entre le CO et le CO₂ pour détecter les zones à pollution croisée."
+  },
+  {
+    name: "NO₂ vs RH",
+    x: "no2",
+    y: "rh",
+    description: "Permet d’étudier l’effet de l’humidité sur les concentrations de NO₂."
+  },
+  {
+    name: "Temp vs NH₃",
+    x: "temp",
+    y: "nh3",
+    description: "Observe la variation de NH₃ en fonction de la température."
+  }
+];
+
+/* -------------------------------------------------------
    UTILITAIRES COULEURS
 ---------------------------------------------------------*/
 function mixColors(hexA, hexB, ratio = 0.5) {
@@ -83,6 +107,7 @@ let scatterChart = null;
 let histXChart = null;
 let histYChart = null;
 
+// Plugin Chart.js pour lignes de survol
 const hoverLinesPlugin = {
   id: 'hoverLines',
   afterDraw: chart => {
@@ -93,10 +118,12 @@ const hoverLinesPlugin = {
       ctx.save();
       ctx.strokeStyle = 'rgba(0,0,0,0.2)';
       ctx.lineWidth = 1;
+      // ligne verticale
       ctx.beginPath();
       ctx.moveTo(x, chart.chartArea.top);
       ctx.lineTo(x, chart.chartArea.bottom);
       ctx.stroke();
+      // ligne horizontale
       ctx.beginPath();
       ctx.moveTo(chart.chartArea.left, y);
       ctx.lineTo(chart.chartArea.right, y);
@@ -107,35 +134,40 @@ const hoverLinesPlugin = {
 };
 
 /* -------------------------------------------------------
-   PRESETS SCATTER (EXEMPLES D'USAGE)
----------------------------------------------------------*/
-const SCATTER_PRESETS = [
-  { x: 'co', y: 'co2', label: 'CO / CO₂' },
-  { x: 'no2', y: 'nh3', label: 'NO₂ / NH₃' },
-  { x: 'temp', y: 'rh', label: 'Temp / Humidité' }
-];
-
-/* -------------------------------------------------------
-   SYNCHRONISER LES SELECTS AVEC L'URL
----------------------------------------------------------*/
-function syncSelectsWithQuery() {
-  const params = new URLSearchParams(window.location.search);
-  const xVar = params.get("x") || SCATTER_PRESETS[0].x;
-  const yVar = params.get("y") || SCATTER_PRESETS[0].y;
-  document.getElementById("select-x").value = xVar;
-  document.getElementById("select-y").value = yVar;
-}
-
-/* -------------------------------------------------------
    LOAD SCATTER
 ---------------------------------------------------------*/
 async function loadScatterFromQuery() {
   const params = new URLSearchParams(window.location.search);
-  const xVar = params.get("x") || SCATTER_PRESETS[0].x;
-  const yVar = params.get("y") || SCATTER_PRESETS[0].y;
+  let xVar = params.get("x");
+  let yVar = params.get("y");
 
+  // Vérifier si un preset correspond
+  const preset = SCATTER_PRESETS.find(p => p.x === xVar && p.y === yVar);
+  const selectedPreset = preset || SCATTER_PRESETS[0];
+
+  // Si aucun X/Y fourni, utiliser le premier preset
+  if(!xVar || !yVar){
+    xVar = selectedPreset.x;
+    yVar = selectedPreset.y;
+  }
+
+  // Mettre à jour selects avec valeurs actuelles
+  document.getElementById("select-x").value = xVar;
+  document.getElementById("select-y").value = yVar;
+
+  // Mettre à jour titre et description
   document.getElementById("scatterTitle").textContent =
     `Scatter : ${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`;
+  document.getElementById("scatterDesc")?.remove();
+  if(selectedPreset?.description){
+    const descEl = document.createElement("div");
+    descEl.id = "scatterDesc";
+    descEl.style.marginTop = "6px";
+    descEl.style.fontSize = "0.9em";
+    descEl.style.color = "#555";
+    descEl.textContent = selectedPreset.description;
+    document.getElementById("gasesScatter").parentElement.appendChild(descEl);
+  }
 
   const history = await IndoorAPI.fetchHistory(1800);
   const data = history.series;
@@ -163,7 +195,7 @@ async function loadScatterFromQuery() {
     type: "scatter",
     data: {
       datasets: [{
-        label: `${xVar.toUpperCase()} / ${yVar.toUpperCase()}`,
+        label: `${xVar.toUpperCase()} / ${yVar.toUpperCase()}`, 
         data: points,
         pointRadius: 4,
         backgroundColor: backgroundColors,
@@ -184,22 +216,8 @@ async function loadScatterFromQuery() {
           display: true,
           labels: {
             generateLabels: chart => [
-              {
-                text: xVar.toUpperCase(),
-                fillStyle: GAS_COLORS[xVar],
-                strokeStyle: GAS_COLORS[xVar],
-                lineWidth: 2,
-                hidden: false,
-                index: 0
-              },
-              {
-                text: yVar.toUpperCase(),
-                fillStyle: GAS_COLORS[yVar],
-                strokeStyle: GAS_COLORS[yVar],
-                lineWidth: 2,
-                hidden: false,
-                index: 1
-              }
+              { text: xVar.toUpperCase(), fillStyle: GAS_COLORS[xVar], strokeStyle: GAS_COLORS[xVar], lineWidth: 2 },
+              { text: yVar.toUpperCase(), fillStyle: GAS_COLORS[yVar], strokeStyle: GAS_COLORS[yVar], lineWidth: 2 }
             ]
           }
         },
@@ -286,11 +304,12 @@ function computeCorrelation(a,b){
 }
 
 /* -------------------------------------------------------
-   MISE À JOUR AUTOMATIQUE SUR CHANGEMENT DE SELECT
+   MISE À JOUR AUTOMATIQUE SUR CHANGEMENT DE SELECT OU PRESET
 ---------------------------------------------------------*/
 function attachAutoUpdate() {
   const selectX = document.getElementById("select-x");
   const selectY = document.getElementById("select-y");
+
   [selectX, selectY].forEach(sel => {
     sel.addEventListener("change", async () => {
       const params = new URLSearchParams(window.location.search);
@@ -300,30 +319,27 @@ function attachAutoUpdate() {
       await loadScatterFromQuery();
     });
   });
-}
 
-/* -------------------------------------------------------
-   PRESET DROPDOWN
----------------------------------------------------------*/
-function createPresetDropdown() {
-  const container = document.getElementById("presetDropdown");
-  if(!container) return;
-  container.innerHTML = '';
-  SCATTER_PRESETS.forEach(preset => {
-    const btn = document.createElement("button");
-    btn.textContent = preset.label;
-    btn.className = "btn";
-    btn.addEventListener("click", async () => {
-      const params = new URLSearchParams(window.location.search);
-      params.set("x", preset.x);
-      params.set("y", preset.y);
-      window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
-      document.getElementById("select-x").value = preset.x;
-      document.getElementById("select-y").value = preset.y;
-      await loadScatterFromQuery();
+  // Créer boutons presets
+  const presetsContainer = document.getElementById("scatterPresets");
+  if(presetsContainer){
+    presetsContainer.innerHTML = "";
+    SCATTER_PRESETS.forEach((p, idx) => {
+      const btn = document.createElement("button");
+      btn.className = "btn";
+      btn.textContent = p.name;
+      btn.addEventListener("click", async () => {
+        selectX.value = p.x;
+        selectY.value = p.y;
+        const params = new URLSearchParams(window.location.search);
+        params.set("x", p.x);
+        params.set("y", p.y);
+        window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
+        await loadScatterFromQuery();
+      });
+      presetsContainer.appendChild(btn);
     });
-    container.appendChild(btn);
-  });
+  }
 }
 
 /* -------------------------------------------------------
@@ -331,8 +347,6 @@ function createPresetDropdown() {
 ---------------------------------------------------------*/
 window.addEventListener("load", async ()=>{
   await loadCharts();
-  syncSelectsWithQuery();      // synchroniser selects avec URL
   await loadScatterFromQuery();
-  attachAutoUpdate();           // mise à jour auto au changement de select
-  createPresetDropdown();       // créer le menu de presets
+  attachAutoUpdate();
 });
