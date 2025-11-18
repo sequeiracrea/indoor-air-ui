@@ -1,23 +1,39 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="fr">
-<head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>Events – SRI</title>
-<link rel="stylesheet" href="assets/css/style.css"/><script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script></head>
+<head>
+  <meta charset="UTF-8">
+  <title>Stabilité – Diagramme de stabilité SRI</title>
+  <link rel="stylesheet" href="assets/css/stability.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="assets/js/events.js" defer></script>
+</head>
 <body>
-<header class="app-header"><h1>Stability & Events (SRI)</h1></header>
-<nav class="top-nav">
-  <a href="index.html">Dashboard</a>
-  <a href="timeline.html">Timeline</a>
-  <a href="gases.html">Gases</a>
-  <a href="scatterbar.html">ScatterBar</a>
-  <a href="comfort.html">Confort</a>
-  <a href="events.html" class="active">Stabilité</a>
-  <a href="relationships.html">Relations</a>
-</nav>
-<main class="container">
-  <div class="card"><canvas id="volChart"></canvas></div>
-  <div class="card"><h3>Interprétation</h3><p>La volatilité (σ) détecte les ruptures.</p></div>
-</main>
-<script src="assets/js/api.js"></script>
-<script src="assets/js/events.js"></script>
+  <header class="app-header">
+    <h1>Stabilité de l'environnement – Vue interactive</h1>
+  </header>
+
+  <nav class="top-nav">
+    <a href="index.html">Dashboard</a>
+    <a href="timeline.html">Timeline</a>
+    <a href="gases.html">Gases</a>
+    <a href="scatterbar.html">ScatterBar</a>
+    <a href="comfort.html">Confort</a>
+    <a href="events.html" class="active">Stabilité</a>
+    <a href="relationships.html">Relations</a>
+  </nav>
+
+  <main class="container">
+    <section id="stabilitySection">
+      <h2>Diagramme de stabilité</h2>
+      <p>Chaque point représente un état de l'environnement. La couleur indique la stabilité :</p>
+      <ul>
+        <li style="color:green">Vert : stable</li>
+        <li style="color:orange">Orange : alerte</li>
+        <li style="color:red">Rouge : instable</li>
+      </ul>
+      <canvas id="stabilityChart" style="width:100%; height:500px;"></canvas>
+      <div id="stabilityLegend" style="margin-top:12px; font-size:0.9em; color:#555;"></div>
+    </section>
+  </main>
 </body>
 </html>
