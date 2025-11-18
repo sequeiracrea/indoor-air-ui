@@ -128,7 +128,6 @@ async function loadScatterFromQuery() {
   if (histXChart) histXChart.destroy();
   if (histYChart) histYChart.destroy();
 
-  // Couleurs des points
   const backgroundColors = points.map((p,i) => {
     const t = i / points.length;
     const density = localDensity(points, i);
@@ -265,15 +264,20 @@ function computeCorrelation(a,b){
 }
 
 /* -------------------------------------------------------
-   MANUAL BUTTON (Mettre à jour)
+   MISE À JOUR AUTOMATIQUE SUR CHANGEMENT DE SELECT
 ---------------------------------------------------------*/
-async function refreshScatterFromSelectors(){
-  const x=document.getElementById("select-x").value;
-  const y=document.getElementById("select-y").value;
-  const params=new URLSearchParams(window.location.search);
-  params.set("x",x); params.set("y",y);
-  window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
-  await loadScatterFromQuery();
+function attachAutoUpdate() {
+  const selectX = document.getElementById("select-x");
+  const selectY = document.getElementById("select-y");
+  [selectX, selectY].forEach(sel => {
+    sel.addEventListener("change", async () => {
+      const params = new URLSearchParams(window.location.search);
+      params.set("x", selectX.value);
+      params.set("y", selectY.value);
+      window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
+      await loadScatterFromQuery();
+    });
+  });
 }
 
 /* -------------------------------------------------------
@@ -282,5 +286,5 @@ async function refreshScatterFromSelectors(){
 window.addEventListener("load", async ()=>{
   await loadCharts();
   await loadScatterFromQuery();
-  document.getElementById("btn-update-scatter").addEventListener("click", refreshScatterFromSelectors);
+  attachAutoUpdate(); // activation du rafraîchissement automatique
 });
