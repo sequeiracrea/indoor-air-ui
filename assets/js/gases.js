@@ -94,13 +94,13 @@ const hoverLinesPlugin = {
       ctx.save();
       ctx.strokeStyle = 'rgba(0,0,0,0.2)';
       ctx.lineWidth = 1;
-
+      
       // ligne verticale
       ctx.beginPath();
       ctx.moveTo(x, chart.chartArea.top);
       ctx.lineTo(x, chart.chartArea.bottom);
       ctx.stroke();
-
+      
       // ligne horizontale
       ctx.beginPath();
       ctx.moveTo(chart.chartArea.left, y);
@@ -111,18 +111,10 @@ const hoverLinesPlugin = {
   }
 };
 
-// Met à jour les selects X/Y selon l'URL (utile depuis la page relations)
-function updateSelectorsFromURL() {
-  const params = new URLSearchParams(window.location.search);
-  const x = params.get("x");
-  const y = params.get("y");
-  if(x) document.getElementById("select-x").value = x;
-  if(y) document.getElementById("select-y").value = y;
-}
-
 async function loadScatterFromQuery() {
-  const xVar = document.getElementById("select-x").value;
-  const yVar = document.getElementById("select-y").value;
+  const params = new URLSearchParams(window.location.search);
+  const xVar = params.get("x") || "co2";
+  const yVar = params.get("y") || "co";
 
   document.getElementById("scatterTitle").textContent =
     `Scatter : ${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`;
@@ -150,52 +142,43 @@ async function loadScatterFromQuery() {
     return lighten(baseColor, bright);
   });
 
- scatterChart = new Chart(document.getElementById("gasesScatter"), {
-  type: "scatter",
-  data: {
-    datasets: [
-      {
-        label: '', // dataset principal sans label pour légende
-        data: points,
-        pointRadius: 4,
-        backgroundColor: backgroundColors,
-        borderColor: backgroundColors,
-        borderWidth: 0.6,
-        parsing: false
-      }
-    ]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: {
-      x: { title: { display: true, text: xVar.toUpperCase() } },
-      y: { title: { display: true, text: yVar.toUpperCase() } }
-    },
-    plugins: {
-      legend: {
-        display: true,
-        labels: {
-          generateLabels: chart => [
-            { text: xVar.toUpperCase(), fillStyle: GAS_COLORS[xVar] },
-            { text: yVar.toUpperCase(), fillStyle: GAS_COLORS[yVar] }
-          ]
+  scatterChart = new Chart(document.getElementById("gasesScatter"), {
+    type: "scatter",
+    data: {
+      datasets: [
+        {
+          label: '', // Pas de label affiché
+          data: points,
+          pointRadius: 4,
+          backgroundColor: backgroundColors,
+          borderColor: backgroundColors,
+          borderWidth: 0.6,
+          parsing: false
         }
-      },
-      tooltip: {
-        mode: 'nearest',
-        intersect: false,
-        callbacks: {
-          label: item => `${xVar}: ${item.raw?.x}, ${yVar}: ${item.raw?.y}`
-        }
-      },
-      hoverLines: {}
+      ]
     },
-    interaction: { mode: 'nearest', intersect: false }
-  },
-  plugins: [hoverLinesPlugin]
-});
-
+    options: {
+      responsive:true,
+      maintainAspectRatio:false,
+      scales: {
+        x: { title: { display:true, text:xVar.toUpperCase() } },
+        y: { title: { display:true, text:yVar.toUpperCase() } }
+      },
+      plugins: {
+        legend: { display:false },
+        tooltip: {
+          mode:'nearest',
+          intersect:false,
+          callbacks: {
+            label: item => `${xVar}: ${item.raw?.x}, ${yVar}: ${item.raw?.y}`
+          }
+        },
+        hoverLines: {}
+      },
+      interaction: { mode:'nearest', intersect:false }
+    },
+    plugins: [hoverLinesPlugin]
+  });
 
   // Histogrammes
   const bins = 20;
@@ -265,23 +248,26 @@ function computeCorrelation(a,b){
 }
 
 /* -------------------------------------------------------
-   MANUAL BUTTON (Mettre à jour)
+   MISE À JOUR AUTOMATIQUE
 ---------------------------------------------------------*/
-async function refreshScatterFromSelectors(){
-  const x=document.getElementById("select-x").value;
-  const y=document.getElementById("select-y").value;
-  const params=new URLSearchParams(window.location.search);
-  params.set("x",x); params.set("y",y);
+function refreshScatterFromSelectors(){
+  const x = document.getElementById("select-x").value;
+  const y = document.getElementById("select-y").value;
+  const params = new URLSearchParams(window.location.search);
+  params.set("x", x);
+  params.set("y", y);
   window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
-  await loadScatterFromQuery();
+  loadScatterFromQuery();
 }
 
 /* -------------------------------------------------------
    START
 ---------------------------------------------------------*/
 window.addEventListener("load", async ()=>{
-  updateSelectorsFromURL(); // <-- Met à jour selects depuis URL
   await loadCharts();
   await loadScatterFromQuery();
-  document.getElementById("btn-update-scatter").addEventListener("click", refreshScatterFromSelectors);
+
+  // Écouteur automatique sur les select pour update instantané
+  document.getElementById("select-x").addEventListener("change", refreshScatterFromSelectors);
+  document.getElementById("select-y").addEventListener("change", refreshScatterFromSelectors);
 });
