@@ -41,7 +41,7 @@ function localDensity(points, index, radius = 0.8) {
 }
 
 /* -------------------------------------------------------
-   LINE CHARTS DES 4 GAZ
+   LINE CHARTS DES GAZ
 ---------------------------------------------------------*/
 async function loadCharts() {
   const history = await IndoorAPI.fetchHistory(3600);
@@ -77,13 +77,13 @@ function makeLineChart(canvasId, labels, values, key) {
 }
 
 /* -------------------------------------------------------
-   SCATTER + HISTOGRAMMES + LIGNES SURVOLE
+   SCATTER + HISTOGRAMMES + SURVOL
 ---------------------------------------------------------*/
 let scatterChart = null;
 let histXChart = null;
 let histYChart = null;
 
-// Plugin Chart.js pour lignes de survol
+// Plugin Chart.js pour lignes X/Y sur survol
 const hoverLinesPlugin = {
   id: 'hoverLines',
   afterDraw: chart => {
@@ -94,13 +94,11 @@ const hoverLinesPlugin = {
       ctx.save();
       ctx.strokeStyle = 'rgba(0,0,0,0.2)';
       ctx.lineWidth = 1;
-      
       // ligne verticale
       ctx.beginPath();
       ctx.moveTo(x, chart.chartArea.top);
       ctx.lineTo(x, chart.chartArea.bottom);
       ctx.stroke();
-      
       // ligne horizontale
       ctx.beginPath();
       ctx.moveTo(chart.chartArea.left, y);
@@ -116,17 +114,20 @@ async function loadScatterFromQuery() {
   const xVar = params.get("x") || "co2";
   const yVar = params.get("y") || "co";
 
+  // Mettre à jour les sélecteurs pour refléter la page actuelle
+  const selX = document.getElementById("select-x");
+  const selY = document.getElementById("select-y");
+  if(selX) selX.value = xVar;
+  if(selY) selY.value = yVar;
+
   document.getElementById("scatterTitle").textContent =
-    `Scatter : ${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`;
+    `Scatter`;
 
   const history = await IndoorAPI.fetchHistory(1800);
   const data = history.series;
   if (!data || data.length === 0) return;
 
-  const points = data.map(d => ({
-    x: d.measures[xVar],
-    y: d.measures[yVar]
-  }));
+  const points = data.map(d => ({ x: d.measures[xVar], y: d.measures[yVar] }));
 
   if (scatterChart) scatterChart.destroy();
   if (histXChart) histXChart.destroy();
@@ -147,13 +148,25 @@ async function loadScatterFromQuery() {
     data: {
       datasets: [
         {
-          label: '', // Pas de label affiché
+          label: `${xVar} vs ${yVar}`, // principal
           data: points,
           pointRadius: 4,
           backgroundColor: backgroundColors,
           borderColor: backgroundColors,
           borderWidth: 0.6,
           parsing: false
+        },
+        {
+          label: xVar.toUpperCase(), // légende X
+          data: [null],
+          pointRadius: 0,
+          backgroundColor: GAS_COLORS[xVar]
+        },
+        {
+          label: yVar.toUpperCase(), // légende Y
+          data: [null],
+          pointRadius: 0,
+          backgroundColor: GAS_COLORS[yVar]
         }
       ]
     },
@@ -165,7 +178,7 @@ async function loadScatterFromQuery() {
         y: { title: { display:true, text:yVar.toUpperCase() } }
       },
       plugins: {
-        legend: { display:false },
+        legend: { display:true },
         tooltip: {
           mode:'nearest',
           intersect:false,
@@ -188,7 +201,6 @@ async function loadScatterFromQuery() {
   const yMin = Math.min(...yValues), yMax = Math.max(...yValues);
   const histX = new Array(bins).fill(0);
   const histY = new Array(bins).fill(0);
-
   xValues.forEach(v => { const idx=Math.floor(((v-xMin)/(xMax-xMin))*(bins-1)); histX[idx]++; });
   yValues.forEach(v => { const idx=Math.floor(((v-yMin)/(yMax-yMin))*(bins-1)); histY[idx]++; });
 
@@ -248,16 +260,13 @@ function computeCorrelation(a,b){
 }
 
 /* -------------------------------------------------------
-   MISE À JOUR AUTOMATIQUE
+   MISE À JOUR AUTOMATIQUE DES SELECTEURS
 ---------------------------------------------------------*/
-function refreshScatterFromSelectors(){
-  const x = document.getElementById("select-x").value;
-  const y = document.getElementById("select-y").value;
-  const params = new URLSearchParams(window.location.search);
-  params.set("x", x);
-  params.set("y", y);
-  window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
-  loadScatterFromQuery();
+function attachScatterSelectors() {
+  const selX = document.getElementById("select-x");
+  const selY = document.getElementById("select-y");
+  if(selX) selX.addEventListener("change", loadScatterFromQuery);
+  if(selY) selY.addEventListener("change", loadScatterFromQuery);
 }
 
 /* -------------------------------------------------------
@@ -266,8 +275,5 @@ function refreshScatterFromSelectors(){
 window.addEventListener("load", async ()=>{
   await loadCharts();
   await loadScatterFromQuery();
-
-  // Écouteur automatique sur les select pour update instantané
-  document.getElementById("select-x").addEventListener("change", refreshScatterFromSelectors);
-  document.getElementById("select-y").addEventListener("change", refreshScatterFromSelectors);
+  attachScatterSelectors(); // mise à jour automatique au changement
 });
