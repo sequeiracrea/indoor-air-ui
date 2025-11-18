@@ -73,7 +73,7 @@ function makeLineChart(canvasId, labels, values, key){
 }
 
 /* -------------------------------------------------------
-   SCATTER AVANCE + LEGENDE + CROSSHAIRS + HISTO INSTANT
+   SCATTER AVANCE + CROSSHAIRS + HISTO POINT
 ---------------------------------------------------------*/
 let scatterChart = null;
 let histXChart = null;
@@ -131,33 +131,23 @@ async function loadScatterFromQuery(){
       },
       plugins:{
         tooltip:{
-          callbacks:{
-            label:ctx=>{
-              const d = ctx.raw;
-              return `${xVar}: ${d.x}, ${yVar}: ${d.y}, densité: ${d.density}, t: ${new Date(d.timestamp*1000).toLocaleTimeString()}`;
-            }
-          }
+          enabled:false // on gère tooltip custom
         }
       },
-      interaction:{mode:'nearest', intersect:false},
-      onHover:(event)=>{
-        const pos = Chart.helpers.getRelativePosition(event, scatterChart);
-        const xVal = scatterChart.scales.x.getValueForPixel(pos.x).toFixed(2);
-        const yVal = scatterChart.scales.y.getValueForPixel(pos.y).toFixed(2);
-        document.getElementById("scatterDetails").innerHTML = `${xVar}: ${xVal} | ${yVar}: ${yVal} | n points: ${data.length}`;
-      }
+      interaction:{mode:'nearest', intersect:true}
     },
     plugins:[{
-      afterDraw:chart=>{
-        if(chart._active && chart._active.length){
-          const ctx = chart.ctx;
-          ctx.save();
-          ctx.strokeStyle='rgba(0,0,0,0.2)';
-          ctx.lineWidth=1;
-          const {x,y} = chart._active[0].element;
-          ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,chart.height); ctx.stroke();
-          ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(chart.width,y); ctx.stroke();
-          ctx.restore();
+      id:'customTooltip',
+      afterEvent(chart, args){
+        const event = args.event;
+        const points = chart.getElementsAtEventForMode(event, 'nearest', {intersect:true}, true);
+        if(points.length>0){
+          const p = points[0].element.$context.raw;
+          showMiniHistogram(p,xVar,yVar);
+          const details = document.getElementById("scatterDetails");
+          details.innerHTML = `${xVar}: ${p.x} | ${yVar}: ${p.y} | densité: ${p.density} | t: ${new Date(p.timestamp*1000).toLocaleTimeString()}`;
+        } else {
+          hideMiniHistogram();
         }
       }
     }]
@@ -218,6 +208,63 @@ function createHistograms(points,xVar,yVar){
       datasets:[{data:histY,backgroundColor:GAS_COLORS[yVar]+"55",borderColor:GAS_COLORS[yVar]}]
     },
     options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}}}
+  });
+}
+
+/* -------------------------------------------------------
+   MINI HISTO SUR POINT
+---------------------------------------------------------*/
+let miniXChart=null;
+let miniYChart=null;
+
+function showMiniHistogram(p,xVar,yVar){
+  const bins=10;
+  const radius=0.2; // ±10% autour du point
+
+  const xValues = scatterChart.data.datasets[0].data.map(d=>d.x).filter(v=>Math.abs(v-p.x)/p.x<=radius);
+  const yValues = scatterChart.data.datasets[0].data.map(d=>d.y).filter(v=>Math.abs(v-p.y)/p.y<=radius);
+
+  // Création ou reset des mini canvas
+  let miniX = document.getElementById("miniHistX");
+  if(!miniX){
+    miniX = document.createElement("canvas");
+    miniX.id="miniHistX";
+    miniX.width=120; miniX.height=80;
+    miniX.style.position="absolute";
+    miniX.style.left="10px";
+    miniX.style.top="10px";
+    miniX.style.zIndex=1000;
+    document.body.appendChild(miniX);
+  }
+
+  let miniY = document.getElementById("miniHistY");
+  if(!miniY){
+    miniY = document.createElement("canvas");
+    miniY.id="miniHistY";
+    miniY.width=120; miniY.height=80;
+    miniY.style.position="absolute";
+    miniY.style.left="140px";
+    miniY.style.top="10px";
+    miniY.style.zIndex=1000;
+    document.body.appendChild(miniY);
+  }
+
+  const createHist = (canvas, values, color)=>{
+    const min=Math.min(...values), max=Math.max(...values);
+    const hist=new Array(bins).fill(0);
+    values.forEach(v=>{ const idx=Math.floor((v-min)/(max-min)*(bins-1)); hist[idx]++; });
+    if(canvas._chart) canvas._chart.destroy();
+    canvas._chart = new Chart(canvas,{type:'bar',data:{labels:Array.from({length:bins},(_,i)=>(min+i*(max-min)/bins).toFixed(2)),datasets:[{data:hist,backgroundColor:color,borderColor:color} ]},options:{responsive:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{display:false}}}});
+  };
+
+  if(xValues.length>0) createHist(miniX,xValues,GAS_COLORS[xVar]);
+  if(yValues.length>0) createHist(miniY,yValues,GAS_COLORS[yVar]);
+}
+
+function hideMiniHistogram(){
+  ["miniHistX","miniHistY"].forEach(id=>{
+    const c=document.getElementById(id);
+    if(c && c._chart) c._chart.destroy();
   });
 }
 
