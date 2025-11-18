@@ -12,16 +12,6 @@ const GAS_COLORS = {
 };
 
 /* -------------------------------------------------------
-   PRESETS / CAS D’USAGE
----------------------------------------------------------*/
-const USE_CASES = [
-  { x:"co", y:"co2", name:"CO vs CO₂", desc:"Analyse de la corrélation entre CO et CO₂ dans l’air." },
-  { x:"no2", y:"rh", name:"NO₂ vs Humidité", desc:"Voir comment l’humidité relative influence le NO₂." },
-  { x:"temp", y:"pres", name:"Température vs Pression", desc:"Évaluer la relation température / pression." },
-  { x:"nh3", y:"co", name:"NH₃ vs CO", desc:"Observer la corrélation NH₃ / CO." }
-];
-
-/* -------------------------------------------------------
    UTILITAIRES COULEURS
 ---------------------------------------------------------*/
 function mixColors(hexA, hexB, ratio = 0.5) {
@@ -57,6 +47,7 @@ async function loadCharts() {
   const history = await IndoorAPI.fetchHistory(3600);
   const data = history.series;
   if (!data || data.length === 0) return;
+
   const labels = data.map(d => d.timestamp);
   makeLineChart("coChart", labels, data.map(d => d.measures.co), "co");
   makeLineChart("co2Chart", labels, data.map(d => d.measures.co2), "co2");
@@ -69,7 +60,18 @@ function makeLineChart(canvasId, labels, values, key) {
   if (!canvas) return;
   new Chart(canvas, {
     type: "line",
-    data: { labels, datasets:[{label:key.toUpperCase(), data:values, borderWidth:2, fill:false, borderColor:GAS_COLORS[key], backgroundColor:GAS_COLORS[key]+"55", tension:0.15}] },
+    data: {
+      labels,
+      datasets: [{
+        label: key.toUpperCase(),
+        data: values,
+        borderWidth: 2,
+        fill: false,
+        borderColor: GAS_COLORS[key],
+        backgroundColor: GAS_COLORS[key]+"55",
+        tension: 0.15
+      }]
+    },
     options: { responsive:true, maintainAspectRatio:false }
   });
 }
@@ -81,6 +83,7 @@ let scatterChart = null;
 let histXChart = null;
 let histYChart = null;
 
+// Plugin Chart.js pour lignes de survol
 const hoverLinesPlugin = {
   id: 'hoverLines',
   afterDraw: chart => {
@@ -104,85 +107,135 @@ const hoverLinesPlugin = {
   }
 };
 
-/* -------------------------------------------------------
-   LOAD SCATTER
----------------------------------------------------------*/
 async function loadScatterFromQuery() {
   const params = new URLSearchParams(window.location.search);
+  const xVar = params.get("x") || "co2";
+  const yVar = params.get("y") || "co";
 
-  // Détection preset actif ou sélection manuelle
-  let preset = USE_CASES.find(p=>p.x===params.get("x") && p.y===params.get("y"));
-  if(!preset) preset = USE_CASES[0]; // par défaut
-  const xVar = params.get("x") || preset.x;
-  const yVar = params.get("y") || preset.y;
-
-  // Mettre à jour les selects
-  document.getElementById("select-x").value = xVar;
-  document.getElementById("select-y").value = yVar;
-
-  // Titre
-  document.getElementById("scatterTitle").textContent = `Scatter : ${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`;
-
-  // Description du preset
-  const presetDesc = USE_CASES.find(p=>p.x===xVar && p.y===yVar)?.desc || "";
-  document.getElementById("scatterUseCaseDescription").textContent = presetDesc;
+  document.getElementById("scatterTitle").textContent =
+    `Scatter : ${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`;
 
   const history = await IndoorAPI.fetchHistory(1800);
   const data = history.series;
   if (!data || data.length === 0) return;
 
-  const points = data.map(d => ({x:d.measures[xVar], y:d.measures[yVar]}));
+  const points = data.map(d => ({
+    x: d.measures[xVar],
+    y: d.measures[yVar]
+  }));
 
   if (scatterChart) scatterChart.destroy();
   if (histXChart) histXChart.destroy();
   if (histYChart) histYChart.destroy();
 
-  const backgroundColors = points.map((p,i)=>{
+  const backgroundColors = points.map((p,i) => {
     const t = i / points.length;
-    const density = localDensity(points,i);
+    const density = localDensity(points, i);
     const mixRatio = Math.min(0.9, Math.max(0.1, t + density*0.02));
     const baseColor = mixColors(GAS_COLORS[xVar], GAS_COLORS[yVar], mixRatio);
-    return lighten(baseColor, Math.min(50,density*5));
+    const bright = Math.min(50, density*5);
+    return lighten(baseColor, bright);
   });
 
   scatterChart = new Chart(document.getElementById("gasesScatter"), {
-    type:"scatter",
-    data: { datasets:[{label:`${xVar.toUpperCase()} / ${yVar.toUpperCase()}`, data:points, pointRadius:4, backgroundColor:backgroundColors, borderColor:backgroundColors, borderWidth:0.6, parsing:false}] },
+    type: "scatter",
+    data: {
+      datasets: [{
+        label: `${xVar.toUpperCase()} / ${yVar.toUpperCase()}`, // unique dataset
+        data: points,
+        pointRadius: 4,
+        backgroundColor: backgroundColors,
+        borderColor: backgroundColors,
+        borderWidth: 0.6,
+        parsing: false
+      }]
+    },
     options: {
       responsive:true,
       maintainAspectRatio:false,
-      scales: { x:{title:{display:true,text:xVar.toUpperCase()}}, y:{title:{display:true,text:yVar.toUpperCase()}} },
-      plugins: { legend:{display:true}, tooltip:{mode:'nearest', intersect:false, callbacks:{label:item=>`${xVar}: ${item.raw?.x}, ${yVar}: ${item.raw?.y}`}}, hoverLines:{} },
-      interaction:{mode:'nearest', intersect:false}
+      scales: {
+        x: { title: { display:true, text:xVar.toUpperCase() } },
+        y: { title: { display:true, text:yVar.toUpperCase() } }
+      },
+      plugins: {
+        legend: {
+          display: true,
+          labels: {
+            generateLabels: chart => [
+              {
+                text: xVar.toUpperCase(),
+                fillStyle: GAS_COLORS[xVar],
+                strokeStyle: GAS_COLORS[xVar],
+                lineWidth: 2,
+                hidden: false,
+                index: 0
+              },
+              {
+                text: yVar.toUpperCase(),
+                fillStyle: GAS_COLORS[yVar],
+                strokeStyle: GAS_COLORS[yVar],
+                lineWidth: 2,
+                hidden: false,
+                index: 1
+              }
+            ]
+          }
+        },
+        tooltip: {
+          mode:'nearest',
+          intersect:false,
+          callbacks: {
+            label: item => `${xVar}: ${item.raw?.x}, ${yVar}: ${item.raw?.y}`
+          }
+        },
+        hoverLines: {}
+      },
+      interaction: { mode:'nearest', intersect:false }
     },
-    plugins:[hoverLinesPlugin]
+    plugins: [hoverLinesPlugin]
   });
 
-  // Histogrammes
+  // Histogrammes avec axe fixe pour éviter scroll vertical
   const bins = 20;
   const xValues = points.map(p=>p.x);
   const yValues = points.map(p=>p.y);
-  const xMin = Math.min(...xValues), xMax=Math.max(...xValues);
-  const yMin = Math.min(...yValues), yMax=Math.max(...yValues);
+  const xMin = Math.min(...xValues), xMax = Math.max(...xValues);
+  const yMin = Math.min(...yValues), yMax = Math.max(...yValues);
   const histX = new Array(bins).fill(0);
   const histY = new Array(bins).fill(0);
-  xValues.forEach(v=>{ const idx=Math.floor(((v-xMin)/(xMax-xMin))*(bins-1)); histX[idx]++; });
-  yValues.forEach(v=>{ const idx=Math.floor(((v-yMin)/(yMax-yMin))*(bins-1)); histY[idx]++; });
+  xValues.forEach(v => { const idx=Math.floor(((v-xMin)/(xMax-xMin))*(bins-1)); histX[idx]++; });
+  yValues.forEach(v => { const idx=Math.floor(((v-yMin)/(yMax-yMin))*(bins-1)); histY[idx]++; });
 
   histXChart = new Chart(document.getElementById("histX"), {
-    type:"bar",
-    data:{ labels:Array.from({length:bins},(_,i)=>(xMin + i*(xMax-xMin)/bins).toFixed(2)), datasets:[{data:histX, backgroundColor:GAS_COLORS[xVar]+"55", borderColor:GAS_COLORS[xVar]}] },
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}}
+    type: "bar",
+    data: {
+      labels: Array.from({length:bins}, (_,i) => (xMin + i*(xMax-xMin)/bins).toFixed(2)),
+      datasets: [{data: histX, backgroundColor: GAS_COLORS[xVar]+"55", borderColor:GAS_COLORS[xVar]}]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true, max: Math.max(...histX)+1 } },
+      plugins: { legend: { display:false } }
+    }
   });
 
   histYChart = new Chart(document.getElementById("histY"), {
-    type:"bar",
-    indexAxis:"y",
-    data:{ labels:Array.from({length:bins},(_,i)=>(yMin + i*(yMax-yMin)/bins).toFixed(2)), datasets:[{data:histY, backgroundColor:GAS_COLORS[yVar]+"55", borderColor:GAS_COLORS[yVar]}] },
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}}
+    type: "bar",
+    indexAxis: "y",
+    data: {
+      labels: Array.from({length:bins}, (_,i) => (yMin + i*(yMax-yMin)/bins).toFixed(2)),
+      datasets: [{data: histY, backgroundColor: GAS_COLORS[yVar]+"55", borderColor:GAS_COLORS[yVar]}]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: { x: { beginAtZero: true, max: Math.max(...histY)+1 } },
+      plugins: { legend: { display:false } }
+    }
   });
 
-  updateScatterDetails(xVar,yVar,data);
+  updateScatterDetails(xVar, yVar, data);
 }
 
 /* -------------------------------------------------------
@@ -207,38 +260,17 @@ function updateScatterDetails(xvar,yvar,series){
    CORRÉLATION (Pearson)
 ---------------------------------------------------------*/
 function computeCorrelation(a,b){
-  const n = a.length;
+  const n=a.length;
   if(n<2) return 0;
-  const ma = a.reduce((s,x)=>s+x,0)/n;
-  const mb = b.reduce((s,x)=>s+x,0)/n;
-  let num=0, da2=0, db2=0;
+  const ma=a.reduce((s,x)=>s+x,0)/n;
+  const mb=b.reduce((s,x)=>s+x,0)/n;
+  let num=0,da2=0,db2=0;
   for(let i=0;i<n;i++){
-    const da = a[i]-ma, db = b[i]-mb;
-    num += da*db; da2 += da*da; db2 += db*db;
+    const da=a[i]-ma, db=b[i]-mb;
+    num+=da*db; da2+=da*da; db2+=db*db;
   }
-  const den = Math.sqrt(da2*db2);
-  return den===0 ? 0 : num/den;
-}
-
-/* -------------------------------------------------------
-   GÉNÉRATION DES BOUTONS USE CASE
----------------------------------------------------------*/
-function renderUseCases() {
-  const container = document.getElementById("scatterUseCases");
-  container.innerHTML = "";
-  USE_CASES.forEach(p=>{
-    const btn = document.createElement("button");
-    btn.className="btn-usecase";
-    btn.textContent=p.name;
-    btn.addEventListener("click", async ()=>{
-      const params = new URLSearchParams(window.location.search);
-      params.set("x",p.x);
-      params.set("y",p.y);
-      window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
-      await loadScatterFromQuery();
-    });
-    container.appendChild(btn);
-  });
+  const den=Math.sqrt(da2*db2);
+  return den===0?0:num/den;
 }
 
 /* -------------------------------------------------------
@@ -247,8 +279,8 @@ function renderUseCases() {
 function attachAutoUpdate() {
   const selectX = document.getElementById("select-x");
   const selectY = document.getElementById("select-y");
-  [selectX, selectY].forEach(sel=>{
-    sel.addEventListener("change", async ()=>{
+  [selectX, selectY].forEach(sel => {
+    sel.addEventListener("change", async () => {
       const params = new URLSearchParams(window.location.search);
       params.set("x", selectX.value);
       params.set("y", selectY.value);
@@ -263,7 +295,6 @@ function attachAutoUpdate() {
 ---------------------------------------------------------*/
 window.addEventListener("load", async ()=>{
   await loadCharts();
-  renderUseCases();     // Générer les boutons de presets
-  attachAutoUpdate();   // Activation auto sur select
   await loadScatterFromQuery();
+  attachAutoUpdate(); // activation du rafraîchissement automatique
 });
