@@ -258,25 +258,46 @@ function attachAutoUpdate() {
 ---------------------------------------------------------*/
 function renderUseCases() {
   const container = document.getElementById("scatterUseCases");
-  if(!container) return;
-  container.innerHTML="";
-  SCATTER_USE_CASES.forEach(uc=>{
+  const descriptionBox = document.getElementById("scatterUseCaseDescription");
+  if (!container) return;
+
+  const params = new URLSearchParams(window.location.search);
+  const currentX = params.get("x");
+  const currentY = params.get("y");
+
+  container.innerHTML = "";
+
+  SCATTER_USE_CASES.forEach(uc => {
     const btn = document.createElement("button");
-    btn.className="btn btn-usecase";
-    btn.textContent=uc.title;
-    btn.title=uc.description;
-    btn.addEventListener("click", async ()=>{
+    btn.className = "btn-usecase";
+    btn.textContent = uc.title;
+    btn.title = uc.description;
+
+    // rendre le preset actif si X/Y matchent
+    if (uc.x === currentX && uc.y === currentY) {
+      btn.classList.add("active");
+      descriptionBox.textContent = uc.description;
+    }
+
+    btn.addEventListener("click", async () => {
       document.getElementById("select-x").value = uc.x;
       document.getElementById("select-y").value = uc.y;
+
       const params = new URLSearchParams(window.location.search);
       params.set("x", uc.x);
       params.set("y", uc.y);
       window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
+
+      descriptionBox.textContent = uc.description;
+
       await loadScatterFromQuery();
+      renderUseCases(); // Mettre à jour les états actifs
     });
+
     container.appendChild(btn);
   });
 }
+
 
 /* -------------------------------------------------------
    START
