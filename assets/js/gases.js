@@ -77,39 +77,11 @@ function makeLineChart(canvasId, labels, values, key) {
 }
 
 /* -------------------------------------------------------
-   SCATTER + HISTOGRAMMES + LIGNES SURVOLE
+   SCATTER + HISTOGRAMMES AVANCE
 ---------------------------------------------------------*/
 let scatterChart = null;
 let histXChart = null;
 let histYChart = null;
-
-// Plugin Chart.js pour lignes de survol
-const hoverLinesPlugin = {
-  id: 'hoverLines',
-  afterDraw: chart => {
-    if(chart.tooltip?._active && chart.tooltip._active.length){
-      const ctx = chart.ctx;
-      const x = chart.tooltip._active[0].element.x;
-      const y = chart.tooltip._active[0].element.y;
-      ctx.save();
-      ctx.strokeStyle = 'rgba(0,0,0,0.2)';
-      ctx.lineWidth = 1;
-      
-      // ligne verticale
-      ctx.beginPath();
-      ctx.moveTo(x, chart.chartArea.top);
-      ctx.lineTo(x, chart.chartArea.bottom);
-      ctx.stroke();
-      
-      // ligne horizontale
-      ctx.beginPath();
-      ctx.moveTo(chart.chartArea.left, y);
-      ctx.lineTo(chart.chartArea.right, y);
-      ctx.stroke();
-      ctx.restore();
-    }
-  }
-};
 
 async function loadScatterFromQuery() {
   const params = new URLSearchParams(window.location.search);
@@ -132,68 +104,80 @@ async function loadScatterFromQuery() {
   if (histXChart) histXChart.destroy();
   if (histYChart) histYChart.destroy();
 
-  // Couleur avancée : mélange X/Y + densité + ancien → récent
-  const backgroundColors = points.map((p,i) => {
-    const t = i / points.length;
+  /* ---- Couleur avancée : X → Y avec densité et ancien → récent ---- */
+  const smartPoints = points.map((p,i) => {
+    const t = i / points.length; // ancien → récent
     const density = localDensity(points, i);
     const mixRatio = Math.min(0.9, Math.max(0.1, t + density*0.02));
     const baseColor = mixColors(GAS_COLORS[xVar], GAS_COLORS[yVar], mixRatio);
     const bright = Math.min(50, density*5);
-    return lighten(baseColor, bright);
+    return {
+      x: p.x,
+      y: p.y,
+      backgroundColor: lighten(baseColor, bright),
+      borderColor: lighten(baseColor, bright),
+      borderWidth: 0.6
+    };
   });
 
-scatterChart = new Chart(document.getElementById("gasesScatter"), {
-  type: "scatter",
-  data: {
-    datasets: [
-      {
-        label: /*`${xVar} vs ${yVar}`*/'', // dataset principal avec points
-        data: points,
-        pointRadius: 4,
-        backgroundColor: backgroundColors,
-        borderColor: backgroundColors,
-        borderWidth: 0.6,
-        parsing: false
-      },
-      {
-        label: xVar.toUpperCase(), // dataset fantôme pour légende X
-        data: [null],
-        pointRadius: 0,
-        backgroundColor: GAS_COLORS[xVar]
-      },
-      {
-        label: yVar.toUpperCase(), // dataset fantôme pour légende Y
-        data: [null],
-        pointRadius: 0,
-        backgroundColor: GAS_COLORS[yVar]
-      }
-    ]
-  },
-  options: {
-    responsive:true,
-    maintainAspectRatio:false,
-    scales: {
-      x: { title: { display:true, text:xVar.toUpperCase() } },
-      y: { title: { display:true, text:yVar.toUpperCase() } }
-    },
-    plugins: {
-      legend: { display:true },
-      tooltip: {
-        mode:'nearest',
-        intersect:false,
-        callbacks: {
-          label: item => `${xVar}: ${item.raw?.x}, ${yVar}: ${item.raw?.y}`
+  scatterChart = new Chart(document.getElementById("gasesScatter"), {
+    type: "scatter",
+    data: {
+      datasets: [
+        {
+          // dataset principal avec points
+          label: '', // vide pour ne pas polluer la légende
+          data: smartPoints,
+          pointRadius: 4,
+          parsing: false
+        },
+        {
+          // dataset fantôme pour la légende X
+          label: xVar.toUpperCase(),
+          data: [{x:0, y:0}],
+          backgroundColor: GAS_COLORS[xVar],
+          borderColor: GAS_COLORS[xVar],
+          pointRadius: 0,
+          hidden: true
+        },
+        {
+          // dataset fantôme pour la légende Y
+          label: yVar.toUpperCase(),
+          data: [{x:0, y:0}],
+          backgroundColor: GAS_COLORS[yVar],
+          borderColor: GAS_COLORS[yVar],
+          pointRadius: 0,
+          hidden: true
         }
-      },
-      hoverLines: {}
+      ]
     },
-    interaction: { mode:'nearest', intersect:false }
-  },
-  plugins: [hoverLinesPlugin]
-});
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { title: { display:true, text:xVar.toUpperCase() } },
+        y: { title: { display:true, text:yVar.toUpperCase() } }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: item => `${xVar}: ${item.raw.x}, ${yVar}: ${item.raw.y}`
+          }
+        },
+        legend: {
+          display: true,
+          labels: {
+            filter: function(item) {
+              // On garde uniquement les deux variables X/Y
+              return item.text === xVar.toUpperCase() || item.text === yVar.toUpperCase();
+            }
+          }
+        }
+      }
+    }
+  });
 
-
-  // Histogrammes
+  /* ---- Histogrammes ---- */
   const bins = 20;
   const xValues = points.map(p=>p.x);
   const yValues = points.map(p=>p.y);
@@ -226,6 +210,7 @@ scatterChart = new Chart(document.getElementById("gasesScatter"), {
 
   updateScatterDetails(xVar, yVar, data);
 }
+
 
 /* -------------------------------------------------------
    STATISTIQUES DU SCATTER
