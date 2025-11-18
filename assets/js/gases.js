@@ -41,7 +41,7 @@ function localDensity(points, index, radius = 0.8) {
 }
 
 /* -------------------------------------------------------
-   LINE CHARTS DES GAZ
+   LINE CHARTS DES 4 GAZ
 ---------------------------------------------------------*/
 async function loadCharts() {
   const history = await IndoorAPI.fetchHistory(3600);
@@ -112,6 +112,10 @@ async function loadScatterFromQuery() {
   const xVar = params.get("x") || "co2";
   const yVar = params.get("y") || "co";
 
+  // ⚡ Correction : mettre à jour les selects pour refléter les variables actuelles
+  document.getElementById("select-x").value = xVar;
+  document.getElementById("select-y").value = yVar;
+
   document.getElementById("scatterTitle").textContent = `Scatter`;
 
   const history = await IndoorAPI.fetchHistory(1800);
@@ -142,7 +146,7 @@ async function loadScatterFromQuery() {
     data: {
       datasets: [
         {
-          label: '', // dataset principal, pas de légende
+          label: null, // Pas de texte de légende principal
           data: points,
           pointRadius: 4,
           backgroundColor: backgroundColors,
@@ -151,13 +155,13 @@ async function loadScatterFromQuery() {
           parsing: false
         },
         {
-          label: xVar.toUpperCase(),
+          label: xVar.toUpperCase(), // légende couleur X
           data: [null],
           pointRadius: 0,
           backgroundColor: GAS_COLORS[xVar]
         },
         {
-          label: yVar.toUpperCase(),
+          label: yVar.toUpperCase(), // légende couleur Y
           data: [null],
           pointRadius: 0,
           backgroundColor: GAS_COLORS[yVar]
@@ -172,15 +176,7 @@ async function loadScatterFromQuery() {
         y: { title: { display:true, text:yVar.toUpperCase() } }
       },
       plugins: {
-        legend: {
-          display:true,
-          labels: {
-            filter: function(item) {
-              // afficher seulement les deux variables
-              return item.text === xVar.toUpperCase() || item.text === yVar.toUpperCase();
-            }
-          }
-        },
+        legend: { display:true },
         tooltip: {
           mode:'nearest',
           intersect:false,
@@ -236,7 +232,7 @@ function updateScatterDetails(xvar,yvar,series){
   const valuesX = series.map(s=>s.measures[xvar]);
   const valuesY = series.map(s=>s.measures[yvar]);
   const minX = Math.min(...valuesX), maxX=Math.max(...valuesX);
-  const minY = Math.min(...valuesY), maxY=Math.max(...valuesY);
+  const minY = Math.min(...valuesY), maxY = Math.max(...valuesY);
   const r = computeCorrelation(valuesX,valuesY);
   document.getElementById("scatterDetails").innerHTML=`<strong>Statistiques :</strong><br>
     n = ${series.length} points<br>
