@@ -1,6 +1,6 @@
-/* ----------------------------------------
+/* -------------------------------------------------------
    PALETTE DE COULEURS COHÉRENTE
-----------------------------------------*/
+---------------------------------------------------------*/
 const GAS_COLORS = {
   co:  "#e74c3c",
   co2: "#3498db",
@@ -11,11 +11,9 @@ const GAS_COLORS = {
   pres:"#9b59b6"
 };
 
-/* ----------------------------------------
-   UTILITAIRES COULEURS (MIX + LUMINOSITÉ)
-----------------------------------------*/
-
-/* Mélange de deux couleurs (70% / 30%) */
+/* -------------------------------------------------------
+   UTILITAIRES COULEURS
+---------------------------------------------------------*/
 function mixColors(hexA, hexB, ratio = 0.7) {
   const a = parseInt(hexA.slice(1), 16);
   const b = parseInt(hexB.slice(1), 16);
@@ -27,13 +25,11 @@ function mixColors(hexA, hexB, ratio = 0.7) {
   return `rgb(${r},${g},${b2})`;
 }
 
-/* Éclaircir une couleur */
 function lighten(color, amount) {
   const c = color.match(/\d+/g).map(Number);
   return `rgb(${Math.min(255, c[0] + amount)},${Math.min(255, c[1] + amount)},${Math.min(255, c[2] + amount)})`;
 }
 
-/* Calcul densité locale */
 function localDensity(points, index, radius = 0.8) {
   let count = 0;
   const p = points[index];
@@ -41,16 +37,14 @@ function localDensity(points, index, radius = 0.8) {
     if (i === index) continue;
     const dx = p.x - points[i].x;
     const dy = p.y - points[i].y;
-    if (dx*dx + dy*dy < radius * radius) count++;
+    if (dx * dx + dy * dy < radius * radius) count++;
   }
   return count;
 }
 
-
-
-/* ----------------------------------------
+/* -------------------------------------------------------
    CHARTJS : LINE CHARTS DES 4 GAZ
-----------------------------------------*/
+---------------------------------------------------------*/
 async function loadCharts() {
   const history = await IndoorAPI.fetchHistory(3600);
   const data = history.series;
@@ -86,10 +80,9 @@ function makeLineChart(canvasId, labels, values, key) {
   });
 }
 
-
-/* ----------------------------------------
+/* -------------------------------------------------------
    SCATTER + HISTOGRAMMES
-----------------------------------------*/
+---------------------------------------------------------*/
 
 let scatterChart = null;
 let histXChart = null;
@@ -113,31 +106,60 @@ async function loadScatterFromQuery() {
     y: d.measures[yVar]
   }));
 
-
   /* ------- Détruire anciens graphiques ------- */
   if (scatterChart) scatterChart.destroy();
   if (histXChart) histXChart.destroy();
   if (histYChart) histYChart.destroy();
 
+  /* -----------------------------------------------------
+     SCATTER INTELLIGENT (couleurs mixtes + densité + temps)
+  ------------------------------------------------------*/
+  const baseColor = mixColors(GAS_COLORS[xVar], GAS_COLORS[yVar], 0.7);
 
-/* ------- Création du SCATTER -------*/
-scatterChart = new Chart(document.getElementById("gasesScatter"), {
-  type: "scatter",
-  data: {
-    datasets: [{
-      label: `${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`,
-      data: points,
-      pointRadius: 4,
-      pointBackgroundColor: GAS_COLORS[xVar],
-      pointBorderColor: GAS_COLORS[xVar],
-    }]
-  },
-  ...
-});
+  const smartPoints = points.map((p, i) => {
+    const t = i / points.length;             // ancien → récent
+    const density = localDensity(points, i);  // clustering
+    const bright = Math.min(60, density * 4);
 
+    return {
+      x: p.x,
+      y: p.y,
+      backgroundColor: lighten(baseColor, bright),
+      borderColor: lighten(baseColor, bright),
+      borderWidth: 0.6,
+      opacity: 0.3 + t * 0.7
+    };
+  });
 
+  scatterChart = new Chart(document.getElementById("gasesScatter"), {
+    type: "scatter",
+    data: {
+      datasets: [{
+        label: `${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`,
+        data: smartPoints,
+        pointRadius: 4,
+        parsing: false
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { title: { display: true, text: xVar.toUpperCase() } },
+        y: { title: { display: true, text: yVar.toUpperCase() } }
+      },
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: item =>
+              `${xVar}: ${item.raw.x}, ${yVar}: ${item.raw.y}`
+          }
+        }
+      }
+    }
+  });
 
-  /* ------- Histogrammes -------*/
+  /* ------- Histogrammes ------- */
   const bins = 20;
 
   const xValues = points.map(p => p.x);
@@ -162,7 +184,7 @@ scatterChart = new Chart(document.getElementById("gasesScatter"), {
   histXChart = new Chart(document.getElementById("histX"), {
     type: "bar",
     data: {
-      labels: Array.from({length: bins}, (_, i) =>
+      labels: Array.from({ length: bins }, (_, i) =>
         (xMin + i * (xMax - xMin) / bins).toFixed(2)
       ),
       datasets: [{
@@ -171,18 +193,14 @@ scatterChart = new Chart(document.getElementById("gasesScatter"), {
         borderColor: GAS_COLORS[xVar]
       }]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } }
-    }
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
   });
 
   histYChart = new Chart(document.getElementById("histY"), {
     type: "bar",
     indexAxis: "y",
     data: {
-      labels: Array.from({length: bins}, (_, i) =>
+      labels: Array.from({ length: bins }, (_, i) =>
         (yMin + i * (yMax - yMin) / bins).toFixed(2)
       ),
       datasets: [{
@@ -191,22 +209,16 @@ scatterChart = new Chart(document.getElementById("gasesScatter"), {
         borderColor: GAS_COLORS[yVar]
       }]
     },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: { legend: { display: false } }
-    }
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
   });
 
-
-  /* ------- Statistiques -------*/
+  /* ------- Statistiques ------- */
   updateScatterDetails(xVar, yVar, data);
 }
 
-
-/* ----------------------------------------
+/* -------------------------------------------------------
    STATISTIQUES DU SCATTER
-----------------------------------------*/
+---------------------------------------------------------*/
 function updateScatterDetails(xvar, yvar, series) {
   const valuesX = series.map(s => s.measures[xvar]);
   const valuesY = series.map(s => s.measures[yvar]);
@@ -227,10 +239,9 @@ function updateScatterDetails(xvar, yvar, series) {
   `;
 }
 
-
-/* ----------------------------------------
+/* -------------------------------------------------------
    CORRÉLATION (Pearson)
-----------------------------------------*/
+---------------------------------------------------------*/
 function computeCorrelation(a, b) {
   const n = a.length;
   if (n < 2) return 0;
@@ -250,10 +261,9 @@ function computeCorrelation(a, b) {
   return den === 0 ? 0 : num / den;
 }
 
-
-/* ----------------------------------------
+/* -------------------------------------------------------
    MANUAL BUTTON (Mettre à jour)
-----------------------------------------*/
+---------------------------------------------------------*/
 async function refreshScatterFromSelectors() {
   const x = document.getElementById("select-x").value;
   const y = document.getElementById("select-y").value;
@@ -266,10 +276,9 @@ async function refreshScatterFromSelectors() {
   await loadScatterFromQuery();
 }
 
-
-/* ----------------------------------------
+/* -------------------------------------------------------
    START
-----------------------------------------*/
+---------------------------------------------------------*/
 window.addEventListener("load", async () => {
   await loadCharts();
   await loadScatterFromQuery();
