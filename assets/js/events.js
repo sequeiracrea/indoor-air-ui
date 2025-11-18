@@ -1,11 +1,12 @@
-const STABILITY_COLORS = { stable:"green", alert:"orange", unstable:"red" };
+const STABILITY_COLORS = { stable:"rgba(0,200,0,0.2)", alert:"rgba(255,165,0,0.2)", unstable:"rgba(255,0,0,0.2)" };
+const POINT_COLORS = { stable:"green", alert:"orange", unstable:"red" };
 let stabilityChart;
 let allPoints = [];
 let timeIndex = 0;
 const maxTimeSteps = 50;
 
-// Génération des données simulées sur plusieurs pas de temps
-function generateAnimatedData(numPoints=100, steps=maxTimeSteps){
+// Génération des données simulées
+function generateAnimatedData(numPoints=150, steps=maxTimeSteps){
   const data = [];
   for(let t=0;t<steps;t++){
     const stepPoints = [];
@@ -18,7 +19,7 @@ function generateAnimatedData(numPoints=100, steps=maxTimeSteps){
       let status = "stable";
       if(stabilityScore>0.5 && stabilityScore<=0.75) status="alert";
       else if(stabilityScore>0.75) status="unstable";
-      stepPoints.push({x:GAQI, y:GEI, sri:SRI, tci:TCI, color:STABILITY_COLORS[status], score:stabilityScore});
+      stepPoints.push({x:GAQI, y:GEI, sri:SRI, tci:TCI, status, score:stabilityScore});
     }
     data.push(stepPoints);
   }
@@ -28,6 +29,21 @@ function generateAnimatedData(numPoints=100, steps=maxTimeSteps){
 // Filtrer points selon TCI et SRI
 function filterPoints(points, tciMin, tciMax, sriMin, sriMax){
   return points.filter(p => p.tci>=tciMin && p.tci<=tciMax && p.sri>=sriMin && p.sri<=sriMax);
+}
+
+// Zones de fond type nucléide
+function drawBackground(ctx, chart){
+  const {left, right, top, bottom} = chart.chartArea;
+  const width = right-left;
+  const height = bottom-top;
+  ctx.save();
+  ctx.fillStyle = STABILITY_COLORS.stable;
+  ctx.fillRect(left, top, width*0.5, height*0.5);
+  ctx.fillStyle = STABILITY_COLORS.alert;
+  ctx.fillRect(left+width*0.5, top, width*0.5, height*0.5);
+  ctx.fillStyle = STABILITY_COLORS.unstable;
+  ctx.fillRect(left, top+height*0.5, width, height*0.5);
+  ctx.restore();
 }
 
 // Render Chart
@@ -40,7 +56,7 @@ function renderChart(points){
       datasets:[{
         label:'État environnemental',
         data:points.map(p=>({x:p.x, y:p.y, extra:p})),
-        pointBackgroundColor:points.map(p=>p.color),
+        pointBackgroundColor:points.map(p=>POINT_COLORS[p.status]),
         pointRadius:6,
         pointHoverRadius:10
       }]
@@ -53,7 +69,7 @@ function renderChart(points){
           callbacks:{
             label:ctx=>{
               const p=ctx.raw.extra;
-              return `GAQI: ${p.x.toFixed(1)}, GEI: ${p.y.toFixed(1)}, SRI: ${p.sri.toFixed(1)}, TCI: ${p.tci.toFixed(1)}, Score: ${p.score.toFixed(2)}`;
+              return `GAQI: ${p.x.toFixed(1)}, GEI: ${p.y.toFixed(1)}, SRI: ${p.sri.toFixed(1)}, TCI: ${p.tci.toFixed(1)}, Score: ${p.score.toFixed(2)}, État: ${p.status}`;
             }
           }
         },
@@ -63,11 +79,15 @@ function renderChart(points){
         x:{ title:{display:true,text:"GAQI"}, min:0, max:100 },
         y:{ title:{display:true,text:"GEI"}, min:0, max:100 }
       }
-    }
+    },
+    plugins:[{
+      id:'backgroundPlugin',
+      beforeDraw:chart=>drawBackground(chart.ctx, chart)
+    }]
   });
 }
 
-// Animation pas à pas
+// Animation
 function animateStep(){
   const tciMin = parseFloat(document.getElementById("tciMin").value);
   const tciMax = parseFloat(document.getElementById("tciMax").value);
@@ -96,6 +116,11 @@ window.addEventListener("load", ()=>{
   animateStep();
   document.getElementById("applyFilters").addEventListener("click", applyFilters);
   document.getElementById("stabilityLegend").innerHTML = `
-    <strong>Note :</strong> Points colorés selon la stabilité globale (stable/alerte/instable). Évolution simulée dans le temps.
+    <strong>Légende :</strong><br>
+    - Fond vert : stable<br>
+    - Fond orange : alerte<br>
+    - Fond rouge : instable<br>
+    - Points : états simulés animés<br>
+    - Tooltip : tous les indices et score global
   `;
 });
