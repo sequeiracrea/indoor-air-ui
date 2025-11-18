@@ -144,54 +144,65 @@ async function loadScatterFromQuery() {
   });
 
   scatterChart = new Chart(document.getElementById("gasesScatter"), {
-    type: "scatter",
-    data: {
-      datasets: [
-        {
-          label: `${xVar} vs ${yVar}`, // principal
-          data: points,
-          pointRadius: 4,
-          backgroundColor: backgroundColors,
-          borderColor: backgroundColors,
-          borderWidth: 0.6,
-          parsing: false
-        },
-        {
-          label: xVar.toUpperCase(), // légende X
-          data: [null],
-          pointRadius: 0,
-          backgroundColor: GAS_COLORS[xVar]
-        },
-        {
-          label: yVar.toUpperCase(), // légende Y
-          data: [null],
-          pointRadius: 0,
-          backgroundColor: GAS_COLORS[yVar]
+  type: "scatter",
+  data: {
+    datasets: [
+      {
+        label: `${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`, // dataset unique
+        data: points,
+        pointRadius: 4,
+        backgroundColor: backgroundColors,
+        borderColor: backgroundColors,
+        borderWidth: 0.6,
+        parsing: false
+      }
+    ]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: false,
+    scales: {
+      x: { title: { display: true, text: xVar.toUpperCase() } },
+      y: { title: { display: true, text: yVar.toUpperCase() } }
+    },
+    plugins: {
+      legend: {
+        display: true,
+        labels: {
+          generateLabels: chart => [
+            {
+              text: xVar.toUpperCase(),
+              fillStyle: GAS_COLORS[xVar],
+              strokeStyle: GAS_COLORS[xVar],
+              lineWidth: 2,
+              hidden: false,
+              index: 0
+            },
+            {
+              text: yVar.toUpperCase(),
+              fillStyle: GAS_COLORS[yVar],
+              strokeStyle: GAS_COLORS[yVar],
+              lineWidth: 2,
+              hidden: false,
+              index: 1
+            }
+          ]
         }
-      ]
-    },
-    options: {
-      responsive:true,
-      maintainAspectRatio:false,
-      scales: {
-        x: { title: { display:true, text:xVar.toUpperCase() } },
-        y: { title: { display:true, text:yVar.toUpperCase() } }
       },
-      plugins: {
-        legend: { display:true },
-        tooltip: {
-          mode:'nearest',
-          intersect:false,
-          callbacks: {
-            label: item => `${xVar}: ${item.raw?.x}, ${yVar}: ${item.raw?.y}`
-          }
-        },
-        hoverLines: {}
+      tooltip: {
+        mode: 'nearest',
+        intersect: false,
+        callbacks: {
+          label: item => `${xVar}: ${item.raw?.x}, ${yVar}: ${item.raw?.y}`
+        }
       },
-      interaction: { mode:'nearest', intersect:false }
+      hoverLines: {}
     },
-    plugins: [hoverLinesPlugin]
-  });
+    interaction: { mode: 'nearest', intersect: false }
+  },
+  plugins: [hoverLinesPlugin]
+});
+
 
   // Histogrammes
   const bins = 20;
