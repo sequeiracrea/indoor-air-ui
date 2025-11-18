@@ -163,8 +163,8 @@ canvas { display:block; width:100% !important; height:auto !important; }
   display: block;
 }
 /* #gasesScatter { height: 400px; }    scatter principal */
-#histX { height: 150px; }          /* histogramme X */
-#histY { height: 150px; }          /* histogramme Y */
+#histX { height: 150px !important; }          /* histogramme X */
+#histY { height: 150px !important; }          /* histogramme Y */
 
 
 
