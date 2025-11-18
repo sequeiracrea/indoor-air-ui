@@ -155,7 +155,7 @@ async function loadScatterFromQuery() {
     data: {
       datasets: [
         {
-          label: `${xVar} points`, // dataset principal
+          label: ``, // dataset principal
           data: points,
           pointRadius: 4,
           backgroundColor: backgroundColors,
