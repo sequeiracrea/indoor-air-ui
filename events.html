@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Stabilité – Diagramme avancé</title>
+  <title>Stabilité – Diagramme animé</title>
   <link rel="stylesheet" href="assets/css/stability.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="assets/js/events.js" defer></script>
@@ -73,11 +73,12 @@ canvas {
   width: 60px;
   padding: 0.2rem;
 }
+
 </style>
 
 <body>
   <header class="app-header">
-    <h1>Stabilité environnementale – Vue interactive avancée</h1>
+    <h1>Stabilité environnementale – Diagramme animé</h1>
   </header>
 
   <nav class="top-nav">
@@ -92,21 +93,13 @@ canvas {
 
   <main class="container">
     <section id="stabilitySection">
-      <h2>Diagramme de stabilité avec filtres</h2>
+      <h2>Diagramme de stabilité animé</h2>
       <p>Filtrez les points selon TCI ou SRI :</p>
       <div id="filters">
-        <label>
-          TCI min : <input type="number" id="tciMin" value="0" min="0" max="100" step="1">
-        </label>
-        <label>
-          TCI max : <input type="number" id="tciMax" value="100" min="0" max="100" step="1">
-        </label>
-        <label>
-          SRI min : <input type="number" id="sriMin" value="0" min="0" max="100" step="1">
-        </label>
-        <label>
-          SRI max : <input type="number" id="sriMax" value="100" min="0" max="100" step="1">
-        </label>
+        <label>TCI min : <input type="number" id="tciMin" value="0" min="0" max="100" step="1"></label>
+        <label>TCI max : <input type="number" id="tciMax" value="100" min="0" max="100" step="1"></label>
+        <label>SRI min : <input type="number" id="sriMin" value="0" min="0" max="100" step="1"></label>
+        <label>SRI max : <input type="number" id="sriMax" value="100" min="0" max="100" step="1"></label>
         <button id="applyFilters">Appliquer</button>
       </div>
       <canvas id="stabilityChart" style="width:100%; height:500px;"></canvas>
