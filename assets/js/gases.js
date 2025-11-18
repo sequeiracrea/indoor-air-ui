@@ -142,41 +142,56 @@ async function loadScatterFromQuery() {
     return lighten(baseColor, bright);
   });
 
-  scatterChart = new Chart(document.getElementById("gasesScatter"), {
-    type: "scatter",
-    data: {
-      datasets: [{
-        label: `${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`,
+scatterChart = new Chart(document.getElementById("gasesScatter"), {
+  type: "scatter",
+  data: {
+    datasets: [
+      {
+        label: `${xVar} vs ${yVar}`, // dataset principal avec points
         data: points,
         pointRadius: 4,
         backgroundColor: backgroundColors,
         borderColor: backgroundColors,
         borderWidth: 0.6,
         parsing: false
-      }]
-    },
-    options: {
-      responsive:true,
-      maintainAspectRatio:false,
-      scales: {
-        x: { title: { display:true, text:xVar.toUpperCase() } },
-        y: { title: { display:true, text:yVar.toUpperCase() } }
       },
-      plugins: {
-        legend: { display:true },
-        tooltip: {
-          mode:'nearest',
-          intersect:false,
-          callbacks: {
-            label: item => `${xVar}: ${item.raw.x}, ${yVar}: ${item.raw.y}`
-          }
-        },
-        hoverLines: {} // activation plugin
+      {
+        label: xVar.toUpperCase(), // dataset fantôme pour légende X
+        data: [null],
+        pointRadius: 0,
+        backgroundColor: GAS_COLORS[xVar]
       },
-      interaction: { mode:'nearest', intersect:false }
+      {
+        label: yVar.toUpperCase(), // dataset fantôme pour légende Y
+        data: [null],
+        pointRadius: 0,
+        backgroundColor: GAS_COLORS[yVar]
+      }
+    ]
+  },
+  options: {
+    responsive:true,
+    maintainAspectRatio:false,
+    scales: {
+      x: { title: { display:true, text:xVar.toUpperCase() } },
+      y: { title: { display:true, text:yVar.toUpperCase() } }
     },
-    plugins: [hoverLinesPlugin]
-  });
+    plugins: {
+      legend: { display:true },
+      tooltip: {
+        mode:'nearest',
+        intersect:false,
+        callbacks: {
+          label: item => `${xVar}: ${item.raw?.x}, ${yVar}: ${item.raw?.y}`
+        }
+      },
+      hoverLines: {}
+    },
+    interaction: { mode:'nearest', intersect:false }
+  },
+  plugins: [hoverLinesPlugin]
+});
+
 
   // Histogrammes
   const bins = 20;
