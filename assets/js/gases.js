@@ -12,30 +12,6 @@ const GAS_COLORS = {
 };
 
 /* -------------------------------------------------------
-   PRÉSETS SCATTER LISIBLES
----------------------------------------------------------*/
-const SCATTER_PRESETS = [
-  {
-    name: "CO vs CO₂",
-    x: "co",
-    y: "co2",
-    description: "Analyse de la corrélation entre le CO et le CO₂ pour détecter les zones à pollution croisée."
-  },
-  {
-    name: "NO₂ vs RH",
-    x: "no2",
-    y: "rh",
-    description: "Permet d’étudier l’effet de l’humidité sur les concentrations de NO₂."
-  },
-  {
-    name: "Temp vs NH₃",
-    x: "temp",
-    y: "nh3",
-    description: "Observe la variation de NH₃ en fonction de la température."
-  }
-];
-
-/* -------------------------------------------------------
    UTILITAIRES COULEURS
 ---------------------------------------------------------*/
 function mixColors(hexA, hexB, ratio = 0.5) {
@@ -134,49 +110,34 @@ const hoverLinesPlugin = {
 };
 
 /* -------------------------------------------------------
-   LOAD SCATTER
+   CAS D'USAGE / PRESETS
+---------------------------------------------------------*/
+const SCATTER_USE_CASES = [
+  { title: "Impact Humidité vs NO₂", x: "rh", y: "no2", description:"Analyse de la corrélation entre l’humidité relative et NO₂." },
+  { title: "Pollution croisée CO/CO₂", x: "co", y: "co2", description:"Étude des zones où CO et CO₂ varient ensemble." },
+  { title: "Température vs NH₃", x: "temp", y: "nh3", description:"Observe comment NH₃ varie en fonction de la température." }
+];
+
+/* -------------------------------------------------------
+   SCATTER PRINCIPAL
 ---------------------------------------------------------*/
 async function loadScatterFromQuery() {
   const params = new URLSearchParams(window.location.search);
-  let xVar = params.get("x");
-  let yVar = params.get("y");
+  const xVar = params.get("x") || "co2";
+  const yVar = params.get("y") || "co";
 
-  // Vérifier si un preset correspond
-  const preset = SCATTER_PRESETS.find(p => p.x === xVar && p.y === yVar);
-  const selectedPreset = preset || SCATTER_PRESETS[0];
-
-  // Si aucun X/Y fourni, utiliser le premier preset
-  if(!xVar || !yVar){
-    xVar = selectedPreset.x;
-    yVar = selectedPreset.y;
-  }
-
-  // Mettre à jour selects avec valeurs actuelles
-  document.getElementById("select-x").value = xVar;
-  document.getElementById("select-y").value = yVar;
-
-  // Mettre à jour titre et description
   document.getElementById("scatterTitle").textContent =
     `Scatter : ${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`;
-  document.getElementById("scatterDesc")?.remove();
-  if(selectedPreset?.description){
-    const descEl = document.createElement("div");
-    descEl.id = "scatterDesc";
-    descEl.style.marginTop = "6px";
-    descEl.style.fontSize = "0.9em";
-    descEl.style.color = "#555";
-    descEl.textContent = selectedPreset.description;
-    document.getElementById("gasesScatter").parentElement.appendChild(descEl);
-  }
+
+  // Met à jour les selects pour refléter X/Y actuels
+  document.getElementById("select-x").value = xVar;
+  document.getElementById("select-y").value = yVar;
 
   const history = await IndoorAPI.fetchHistory(1800);
   const data = history.series;
   if (!data || data.length === 0) return;
 
-  const points = data.map(d => ({
-    x: d.measures[xVar],
-    y: d.measures[yVar]
-  }));
+  const points = data.map(d => ({ x: d.measures[xVar], y: d.measures[yVar] }));
 
   if (scatterChart) scatterChart.destroy();
   if (histXChart) histXChart.destroy();
@@ -193,46 +154,27 @@ async function loadScatterFromQuery() {
 
   scatterChart = new Chart(document.getElementById("gasesScatter"), {
     type: "scatter",
-    data: {
-      datasets: [{
-        label: `${xVar.toUpperCase()} / ${yVar.toUpperCase()}`, 
-        data: points,
-        pointRadius: 4,
-        backgroundColor: backgroundColors,
-        borderColor: backgroundColors,
-        borderWidth: 0.6,
-        parsing: false
-      }]
-    },
+    data: { datasets: [{ label:`${xVar.toUpperCase()} / ${yVar.toUpperCase()}`, data:points, pointRadius:4, backgroundColor:backgroundColors, borderColor:backgroundColors, borderWidth:0.6, parsing:false }] },
     options: {
       responsive:true,
       maintainAspectRatio:false,
-      scales: {
-        x: { title: { display:true, text:xVar.toUpperCase() } },
-        y: { title: { display:true, text:yVar.toUpperCase() } }
-      },
+      scales: { x:{ title:{ display:true, text:xVar.toUpperCase() } }, y:{ title:{ display:true, text:yVar.toUpperCase() } } },
       plugins: {
         legend: {
-          display: true,
+          display:true,
           labels: {
             generateLabels: chart => [
-              { text: xVar.toUpperCase(), fillStyle: GAS_COLORS[xVar], strokeStyle: GAS_COLORS[xVar], lineWidth: 2 },
-              { text: yVar.toUpperCase(), fillStyle: GAS_COLORS[yVar], strokeStyle: GAS_COLORS[yVar], lineWidth: 2 }
+              { text:xVar.toUpperCase(), fillStyle:GAS_COLORS[xVar], strokeStyle:GAS_COLORS[xVar], lineWidth:2, hidden:false, index:0 },
+              { text:yVar.toUpperCase(), fillStyle:GAS_COLORS[yVar], strokeStyle:GAS_COLORS[yVar], lineWidth:2, hidden:false, index:1 }
             ]
           }
         },
-        tooltip: {
-          mode:'nearest',
-          intersect:false,
-          callbacks: {
-            label: item => `${xVar}: ${item.raw?.x}, ${yVar}: ${item.raw?.y}`
-          }
-        },
+        tooltip: { mode:'nearest', intersect:false, callbacks:{ label:item => `${xVar}: ${item.raw?.x}, ${yVar}: ${item.raw?.y}` } },
         hoverLines: {}
       },
-      interaction: { mode:'nearest', intersect:false }
+      interaction:{ mode:'nearest', intersect:false }
     },
-    plugins: [hoverLinesPlugin]
+    plugins:[hoverLinesPlugin]
   });
 
   // Histogrammes
@@ -243,26 +185,20 @@ async function loadScatterFromQuery() {
   const yMin = Math.min(...yValues), yMax = Math.max(...yValues);
   const histX = new Array(bins).fill(0);
   const histY = new Array(bins).fill(0);
-  xValues.forEach(v => { const idx=Math.floor(((v-xMin)/(xMax-xMin))*(bins-1)); histX[idx]++; });
-  yValues.forEach(v => { const idx=Math.floor(((v-yMin)/(yMax-yMin))*(bins-1)); histY[idx]++; });
+  xValues.forEach(v=>{ const idx=Math.floor(((v-xMin)/(xMax-xMin))*(bins-1)); histX[idx]++; });
+  yValues.forEach(v=>{ const idx=Math.floor(((v-yMin)/(yMax-yMin))*(bins-1)); histY[idx]++; });
 
   histXChart = new Chart(document.getElementById("histX"), {
     type:"bar",
-    data:{
-      labels:Array.from({length:bins},(_,i)=>(xMin + i*(xMax-xMin)/bins).toFixed(2)),
-      datasets:[{data:histX, backgroundColor:GAS_COLORS[xVar]+"55", borderColor:GAS_COLORS[xVar]}]
-    },
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}}
+    data:{ labels:Array.from({length:bins},(_,i)=>(xMin + i*(xMax-xMin)/bins).toFixed(2)), datasets:[{data:histX, backgroundColor:GAS_COLORS[xVar]+"55", borderColor:GAS_COLORS[xVar]}] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} } }
   });
 
   histYChart = new Chart(document.getElementById("histY"), {
     type:"bar",
     indexAxis:"y",
-    data:{
-      labels:Array.from({length:bins},(_,i)=>(yMin + i*(yMax-yMin)/bins).toFixed(2)),
-      datasets:[{data:histY, backgroundColor:GAS_COLORS[yVar]+"55", borderColor:GAS_COLORS[yVar]}]
-    },
-    options:{responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}}
+    data:{ labels:Array.from({length:bins},(_,i)=>(yMin + i*(yMax-yMin)/bins).toFixed(2)), datasets:[{data:histY, backgroundColor:GAS_COLORS[yVar]+"55", borderColor:GAS_COLORS[yVar]}] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} } }
   });
 
   updateScatterDetails(xVar, yVar, data);
@@ -295,23 +231,19 @@ function computeCorrelation(a,b){
   const ma=a.reduce((s,x)=>s+x,0)/n;
   const mb=b.reduce((s,x)=>s+x,0)/n;
   let num=0,da2=0,db2=0;
-  for(let i=0;i<n;i++){
-    const da=a[i]-ma, db=b[i]-mb;
-    num+=da*db; da2+=da*da; db2+=db*db;
-  }
+  for(let i=0;i<n;i++){ const da=a[i]-ma, db=b[i]-mb; num+=da*db; da2+=da*da; db2+=db*db; }
   const den=Math.sqrt(da2*db2);
   return den===0?0:num/den;
 }
 
 /* -------------------------------------------------------
-   MISE À JOUR AUTOMATIQUE SUR CHANGEMENT DE SELECT OU PRESET
+   MISE À JOUR AUTOMATIQUE SUR CHANGEMENT DE SELECT
 ---------------------------------------------------------*/
 function attachAutoUpdate() {
   const selectX = document.getElementById("select-x");
   const selectY = document.getElementById("select-y");
-
-  [selectX, selectY].forEach(sel => {
-    sel.addEventListener("change", async () => {
+  [selectX, selectY].forEach(sel=>{
+    sel.addEventListener("change", async ()=>{
       const params = new URLSearchParams(window.location.search);
       params.set("x", selectX.value);
       params.set("y", selectY.value);
@@ -319,27 +251,31 @@ function attachAutoUpdate() {
       await loadScatterFromQuery();
     });
   });
+}
 
-  // Créer boutons presets
-  const presetsContainer = document.getElementById("scatterPresets");
-  if(presetsContainer){
-    presetsContainer.innerHTML = "";
-    SCATTER_PRESETS.forEach((p, idx) => {
-      const btn = document.createElement("button");
-      btn.className = "btn";
-      btn.textContent = p.name;
-      btn.addEventListener("click", async () => {
-        selectX.value = p.x;
-        selectY.value = p.y;
-        const params = new URLSearchParams(window.location.search);
-        params.set("x", p.x);
-        params.set("y", p.y);
-        window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
-        await loadScatterFromQuery();
-      });
-      presetsContainer.appendChild(btn);
+/* -------------------------------------------------------
+   RENDER DES CAS D'USAGE
+---------------------------------------------------------*/
+function renderUseCases() {
+  const container = document.getElementById("scatterUseCases");
+  if(!container) return;
+  container.innerHTML="";
+  SCATTER_USE_CASES.forEach(uc=>{
+    const btn = document.createElement("button");
+    btn.className="btn btn-usecase";
+    btn.textContent=uc.title;
+    btn.title=uc.description;
+    btn.addEventListener("click", async ()=>{
+      document.getElementById("select-x").value = uc.x;
+      document.getElementById("select-y").value = uc.y;
+      const params = new URLSearchParams(window.location.search);
+      params.set("x", uc.x);
+      params.set("y", uc.y);
+      window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
+      await loadScatterFromQuery();
     });
-  }
+    container.appendChild(btn);
+  });
 }
 
 /* -------------------------------------------------------
@@ -349,4 +285,5 @@ window.addEventListener("load", async ()=>{
   await loadCharts();
   await loadScatterFromQuery();
   attachAutoUpdate();
+  renderUseCases();
 });
