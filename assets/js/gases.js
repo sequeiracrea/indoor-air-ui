@@ -125,7 +125,16 @@ async function loadScatterFromQuery() {
    
    scatterChart = new Chart(document.getElementById("gasesScatter"), {
      type: "scatter",
-     data: { datasets: [{ label: `${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`, data: smartPoints, pointRadius: 4, parsing: false }] },
+     data: {
+       datasets: [{
+         label: `${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`,
+         data: smartPoints.map(p => ({x: p.x, y: p.y})),
+         pointRadius: 4,
+         pointBackgroundColor: smartPoints.map(p => p.backgroundColor),
+         pointBorderColor: smartPoints.map(p => p.borderColor),
+         borderWidth: 0.6
+       }]
+     },
      options: {
        responsive: true,
        maintainAspectRatio: false,
@@ -134,10 +143,15 @@ async function loadScatterFromQuery() {
          y: { title: { display: true, text: yVar.toUpperCase() } }
        },
        plugins: {
-         tooltip: { callbacks: { label: item => `${xVar}: ${item.raw.x}, ${yVar}: ${item.raw.y}` } }
+         tooltip: {
+           callbacks: {
+             label: item => `${xVar}: ${item.raw.x}, ${yVar}: ${item.raw.y}`
+           }
+         }
        }
      }
    });
+
 
 
   /* ---- Histogrammes ---- */
