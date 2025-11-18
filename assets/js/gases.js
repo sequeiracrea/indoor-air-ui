@@ -107,16 +107,74 @@ const hoverLinesPlugin = {
   }
 };
 
+/* -------------------------------------------------------
+   ANALYSES TYPES / PRESETS
+---------------------------------------------------------*/
+const SCATTER_PRESETS = [
+  { label: "CO vs CO2", x:"co", y:"co2", desc:"Impact de CO sur CO2" },
+  { label: "NO2 vs RH", x:"no2", y:"rh", desc:"Variation de NO2 selon humidité relative" },
+  { label: "Temp vs Pres", x:"temp", y:"pres", desc:"Température et pression" },
+  { label: "NH3 vs CO", x:"nh3", y:"co", desc:"Relation NH3 et CO" }
+];
+
+function createPresetDropdown() {
+  const container = document.createElement("div");
+  container.id = "scatterPresetDropdown";
+  container.style.display = "flex";
+  container.style.alignItems = "center";
+  container.style.gap = "8px";
+  container.style.margin = "12px 0";
+
+  const label = document.createElement("label");
+  label.textContent = "Analyse type : ";
+  container.appendChild(label);
+
+  const select = document.createElement("select");
+  select.className = "select-multi";
+  const defaultOption = document.createElement("option");
+  defaultOption.value = "";
+  defaultOption.textContent = "Aucun preset";
+  select.appendChild(defaultOption);
+
+  SCATTER_PRESETS.forEach((p, i) => {
+    const opt = document.createElement("option");
+    opt.value = i;
+    opt.textContent = p.label;
+    opt.title = p.desc;
+    select.appendChild(opt);
+  });
+
+  select.addEventListener("change", async () => {
+    const idx = select.value;
+    if (idx === "") return;
+    const preset = SCATTER_PRESETS[idx];
+    document.getElementById("select-x").value = preset.x;
+    document.getElementById("select-y").value = preset.y;
+
+    const params = new URLSearchParams(window.location.search);
+    params.set("x", preset.x);
+    params.set("y", preset.y);
+    window.history.replaceState({}, "", `${window.location.pathname}?${params}`);
+
+    await loadScatterFromQuery();
+  });
+
+  container.appendChild(select);
+
+  const scatterSection = document.getElementById("scatterTitle").closest("section");
+  scatterSection.insertBefore(container, scatterSection.querySelector("#scatterTitle"));
+}
+
+/* -------------------------------------------------------
+   CHARGEMENT DU SCATTER
+---------------------------------------------------------*/
 async function loadScatterFromQuery() {
   const params = new URLSearchParams(window.location.search);
-  const xVar = params.get("x") || document.getElementById("select-x").value;
-  const yVar = params.get("y") || document.getElementById("select-y").value;
-
-  document.getElementById("select-x").value = xVar;
-  document.getElementById("select-y").value = yVar;
+  const xVar = params.get("x") || "co2";
+  const yVar = params.get("y") || "co";
 
   document.getElementById("scatterTitle").textContent =
-    `Scatter : ${xVar.toUpperCase()} / ${yVar.toUpperCase()}`;
+    `Scatter : ${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`;
 
   const history = await IndoorAPI.fetchHistory(1800);
   const data = history.series;
@@ -162,8 +220,22 @@ async function loadScatterFromQuery() {
           display: true,
           labels: {
             generateLabels: chart => [
-              { text: xVar.toUpperCase(), fillStyle: GAS_COLORS[xVar], strokeStyle: GAS_COLORS[xVar], lineWidth: 2, hidden:false, index:0 },
-              { text: yVar.toUpperCase(), fillStyle: GAS_COLORS[yVar], strokeStyle: GAS_COLORS[yVar], lineWidth: 2, hidden:false, index:1 }
+              {
+                text: xVar.toUpperCase(),
+                fillStyle: GAS_COLORS[xVar],
+                strokeStyle: GAS_COLORS[xVar],
+                lineWidth: 2,
+                hidden: false,
+                index: 0
+              },
+              {
+                text: yVar.toUpperCase(),
+                fillStyle: GAS_COLORS[yVar],
+                strokeStyle: GAS_COLORS[yVar],
+                lineWidth: 2,
+                hidden: false,
+                index: 1
+              }
             ]
           }
         },
@@ -271,6 +343,7 @@ function attachAutoUpdate() {
 ---------------------------------------------------------*/
 window.addEventListener("load", async ()=>{
   await loadCharts();
+  createPresetDropdown();
   await loadScatterFromQuery();
   attachAutoUpdate();
 });
