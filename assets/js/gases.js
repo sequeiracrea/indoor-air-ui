@@ -104,37 +104,41 @@ async function loadScatterFromQuery() {
   if (histXChart) histXChart.destroy();
   if (histYChart) histYChart.destroy();
 
-  /* ---- Couleur avancée : X → Y avec densité et ancien → récent ---- */
-  const smartPoints = points.map((p,i) => {
-    const t = i / points.length; // ancien → récent
-    const density = localDensity(points, i);
-    const mixRatio = Math.min(0.9, Math.max(0.1, t + density*0.02));
-    const baseColor = mixColors(GAS_COLORS[xVar], GAS_COLORS[yVar], mixRatio);
-    const bright = Math.min(50, density*5);
-    return {
-      x: p.x,
-      y: p.y,
-      backgroundColor: lighten(baseColor, bright),
-      borderColor: lighten(baseColor, bright),
-      borderWidth: 0.6
-    };
-  });
+   /* ---- Scatter intelligent avec couleurs fusion X/Y et densité ---- */
+   const baseXColor = GAS_COLORS[xVar];
+   const baseYColor = GAS_COLORS[yVar];
+   
+   const smartPoints = points.map((p, i) => {
+     const t = i / points.length; // ancien → récent
+     const density = localDensity(points, i);
+     const mixRatio = 0.5; // mélange X/Y à parts égales
+     const baseColor = mixColors(baseXColor, baseYColor, mixRatio);
+     const bright = Math.min(50, density * 5);
+     return {
+       x: p.x,
+       y: p.y,
+       backgroundColor: lighten(baseColor, bright),
+       borderColor: lighten(baseColor, bright),
+       borderWidth: 0.6
+     };
+   });
+   
+   scatterChart = new Chart(document.getElementById("gasesScatter"), {
+     type: "scatter",
+     data: { datasets: [{ label: `${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`, data: smartPoints, pointRadius: 4, parsing: false }] },
+     options: {
+       responsive: true,
+       maintainAspectRatio: false,
+       scales: {
+         x: { title: { display: true, text: xVar.toUpperCase() } },
+         y: { title: { display: true, text: yVar.toUpperCase() } }
+       },
+       plugins: {
+         tooltip: { callbacks: { label: item => `${xVar}: ${item.raw.x}, ${yVar}: ${item.raw.y}` } }
+       }
+     }
+   });
 
-  scatterChart = new Chart(document.getElementById("gasesScatter"), {
-    type: "scatter",
-    data: { datasets:[{ label:`${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`, data: smartPoints, pointRadius:4, parsing:false }]},
-    options: {
-      responsive:true,
-      maintainAspectRatio:false,
-      scales: {
-        x: { title: { display:true, text:xVar.toUpperCase() } },
-        y: { title: { display:true, text:yVar.toUpperCase() } }
-      },
-      plugins: {
-        tooltip: { callbacks: { label: item => `${xVar}: ${item.raw.x}, ${yVar}: ${item.raw.y}`} }
-      }
-    }
-  });
 
   /* ---- Histogrammes ---- */
   const bins = 20;
