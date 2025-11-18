@@ -162,9 +162,17 @@ canvas { display:block; width:100% !important; height:auto !important; }
   max-height: 400px;
   display: block;
 }
-/* #gasesScatter { height: 400px; }    scatter principal */
-#histX { height: 150px !important; }          /* histogramme X */
-#histY { height: 150px !important; }          /* histogramme Y */
+.hist-container {
+  height: 150px;       /* hauteur fixe souhaitée */
+  position: relative;  /* nécessaire pour Chart.js responsive */
+}
+
+.hist-container canvas {
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
 
 
 
