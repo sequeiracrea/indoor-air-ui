@@ -112,6 +112,12 @@ async function loadScatterFromQuery() {
   const xVar = params.get("x") || "co2";
   const yVar = params.get("y") || "co";
 
+  // --- Synchronisation des select avec URL (relations page) ---
+  const selectX = document.getElementById("select-x");
+  const selectY = document.getElementById("select-y");
+  if(selectX) selectX.value = xVar;
+  if(selectY) selectY.value = yVar;
+
   document.getElementById("scatterTitle").textContent =
     `Scatter : ${xVar.toUpperCase()} vs ${yVar.toUpperCase()}`;
 
@@ -141,7 +147,7 @@ async function loadScatterFromQuery() {
     type: "scatter",
     data: {
       datasets: [{
-        label: `${xVar.toUpperCase()} / ${yVar.toUpperCase()}`, // unique dataset
+        label: `${xVar.toUpperCase()} / ${yVar.toUpperCase()}`,
         data: points,
         pointRadius: 4,
         backgroundColor: backgroundColors,
