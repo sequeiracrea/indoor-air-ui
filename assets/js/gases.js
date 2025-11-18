@@ -83,7 +83,6 @@ function makeLineChart(canvasId, labels, values, key) {
 /* -------------------------------------------------------
    SCATTER + HISTOGRAMMES
 ---------------------------------------------------------*/
-
 let scatterChart = null;
 let histXChart = null;
 let histYChart = null;
@@ -112,7 +111,7 @@ async function loadScatterFromQuery() {
   if (histYChart) histYChart.destroy();
 
   /* -----------------------------------------------------
-     SCATTER INTELLIGENT (couleurs mixtes + densité + temps)
+     SCATTER INTELLIGENT (couleurs mixtes + densité + ancien→récent)
   ------------------------------------------------------*/
   const baseColor = mixColors(GAS_COLORS[xVar], GAS_COLORS[yVar], 0.7);
 
@@ -159,7 +158,7 @@ async function loadScatterFromQuery() {
     }
   });
 
-  /* ------- Histogrammes ------- */
+  /* ------- Histogrammes X/Y ------- */
   const bins = 20;
 
   const xValues = points.map(p => p.x);
