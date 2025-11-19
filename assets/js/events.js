@@ -12,148 +12,88 @@ const POINT_COLORS = {
     unstable: "red"
 };
 
-let stabilityChart;
+let chart;
 let allFrames = [];
 let currentFrame = 0;
 let animating = false;
-let animationId;
 
-// -------------------------------
-// Lecture de l’historique
-// -------------------------------
+// ----------------------------------
+// Chargement historique
+// ----------------------------------
 async function loadFramesFromHistory(sec = 1800) {
-    try {
-        const history = await window.IndoorAPI.fetchHistory(sec);
+    const hist = await window.IndoorAPI.fetchHistory(sec);
+    if (!hist || !hist.series) return [];
 
-        if (!history || !history.series) {
-            console.warn("Pas de séries dans l’historique");
-            return [];
+    return hist.series
+        .map(entry => {
+            if (!entry.indices) return null;
+            const { GAQI, GEI, SRI, TCI } = entry.indices;
+            if (GAQI == null || GEI == null || SRI == null || TCI == null) return null;
+            return { x: GAQI, y: GEI, sri: SRI, tci: TCI };
+        })
+        .filter(Boolean);
+}
+
+// ----------------------------------
+// Fond du graphique
+// ----------------------------------
+function backgroundPlugin() {
+    return {
+        id: "bg",
+        beforeDraw(chart) {
+            const { left, top, right, bottom } = chart.chartArea;
+            const ctx = chart.ctx;
+
+            const w = right - left;
+            const h = bottom - top;
+
+            ctx.save();
+            ctx.fillStyle = STABILITY_COLORS.stable;
+            ctx.fillRect(left, top, w * 0.5, h * 0.5);
+
+            ctx.fillStyle = STABILITY_COLORS.alert;
+            ctx.fillRect(left + w * 0.5, top, w * 0.5, h * 0.5);
+
+            ctx.fillStyle = STABILITY_COLORS.unstable;
+            ctx.fillRect(left, top + h * 0.5, w, h * 0.5);
+            ctx.restore();
         }
-
-        console.log("Frames brutes reçues :", history.series.length);
-
-        const frames = history.series
-            .map(entry => {
-                const idx = entry.indices;
-                if (!idx) return null;
-
-                const { GAQI, GEI, SRI, TCI } = idx;
-
-                if (
-                    GAQI === undefined ||
-                    GEI === undefined ||
-                    SRI === undefined ||
-                    TCI === undefined
-                ) {
-                    return null;
-                }
-
-                return {
-                    x: GAQI,
-                    y: GEI,
-                    sri: SRI,
-                    tci: TCI
-                };
-            })
-            .filter(Boolean);
-
-        console.log("Frames valides :", frames.length);
-        return frames;
-
-    } catch (e) {
-        console.error("Erreur récupération historique :", e);
-        return [];
-    }
+    };
 }
 
-// -------------------------------
-// Filtrage
-// -------------------------------
-function filterPoints(points, tciMin, tciMax, sriMin, sriMax) {
-    return points.filter(
-        p => p.tci >= tciMin && p.tci <= tciMax && p.sri >= sriMin && p.sri <= sriMax
-    );
-}
-
-// -------------------------------
-// Fond du diagramme
-// -------------------------------
-function drawBackground(ctx, chart) {
-    const { left, right, top, bottom } = chart.chartArea;
-
-    ctx.save();
-
-    const width = right - left;
-    const height = bottom - top;
-
-    // Stable
-    ctx.fillStyle = STABILITY_COLORS.stable;
-    ctx.fillRect(left, top, width * 0.5, height * 0.5);
-
-    // Alerte
-    ctx.fillStyle = STABILITY_COLORS.alert;
-    ctx.fillRect(left + width * 0.5, top, width * 0.5, height * 0.5);
-
-    // Instable
-    ctx.fillStyle = STABILITY_COLORS.unstable;
-    ctx.fillRect(left, top + height * 0.5, width, height * 0.5);
-
-    ctx.restore();
-}
-
-// -------------------------------
-// Affichage du graphique
-// -------------------------------
-function renderChart(points) {
+// ----------------------------------
+// Création unique du graphique
+// ----------------------------------
+function createChart() {
     const ctx = document.getElementById("stabilityChart").getContext("2d");
 
-    if (stabilityChart) stabilityChart.destroy();
-
-    stabilityChart = new Chart(ctx, {
+    chart = new Chart(ctx, {
         type: "scatter",
         data: {
-            datasets: [
-                {
-                    label: "Point environnemental",
-                    data: points.map(p => ({ x: p.x, y: p.y, extra: p })),
-                    pointBackgroundColor: points.map(p => {
-                        const score = Math.sqrt(
-                            (p.x / 100) ** 2 +
-                            (p.y / 100) ** 2 +
-                            (p.sri / 100) ** 2 +
-                            (p.tci / 100) ** 2
-                        );
-                        if (score > 0.75) return POINT_COLORS.unstable;
-                        if (score > 0.5) return POINT_COLORS.alert;
-                        return POINT_COLORS.stable;
-                    }),
-                    pointRadius: 8
-                }
-            ]
+            datasets: [{
+                data: [],
+                pointRadius: 8,
+                pointBackgroundColor: [],
+            }]
         },
+
         options: {
+            animation: false,   // ⚠️ Désactivation totale = PAS DE BUG
             responsive: true,
             maintainAspectRatio: false,
 
             scales: {
-                x: {
-                    min: 0,
-                    max: 100,
-                    title: { display: true, text: "GAQI" }
-                },
-                y: {
-                    min: 0,
-                    max: 100,
-                    title: { display: true, text: "GEI" }
-                }
+                x: { min: 0, max: 100, title: { display: true, text: "GAQI" }},
+                y: { min: 0, max: 100, title: { display: true, text: "GEI" }}
             },
 
             plugins: {
                 tooltip: {
                     callbacks: {
-                        label: ctx => {
+                        label(ctx) {
                             const p = ctx.raw.extra;
-                            return `GAQI: ${p.x.toFixed(1)}, GEI: ${p.y.toFixed(1)}, SRI: ${p.sri.toFixed(1)}, TCI: ${p.tci.toFixed(1)}`;
+                            return `GAQI: ${p.x.toFixed(1)} / GEI: ${p.y.toFixed(1)}
+SRI: ${p.sri.toFixed(1)} / TCI: ${p.tci.toFixed(1)}`;
                         }
                     }
                 },
@@ -161,69 +101,73 @@ function renderChart(points) {
             }
         },
 
-        plugins: [
-            {
-                id: "bg",
-                beforeDraw: chart => drawBackground(chart.ctx, chart)
-            }
-        ]
+        plugins: [backgroundPlugin()]
     });
 }
 
-// -------------------------------
-// Animation
-// -------------------------------
-function nextFrame() {
+// ----------------------------------
+// Mise à jour du point (SANS recréer le chart)
+// ----------------------------------
+function updateFrame() {
     if (!allFrames.length) return;
 
-    const tciMin = parseFloat(document.getElementById("tciMin").value) || 0;
-    const tciMax = parseFloat(document.getElementById("tciMax").value) || 100;
-    const sriMin = parseFloat(document.getElementById("sriMin").value) || 0;
-    const sriMax = parseFloat(document.getElementById("sriMax").value) || 100;
+    const f = allFrames[currentFrame];
 
-    const frame = allFrames[currentFrame];
-    const filtered = filterPoints([frame], tciMin, tciMax, sriMin, sriMax);
+    const dataset = chart.data.datasets[0];
 
-    renderChart(filtered);
+    dataset.data = [{
+        x: f.x,
+        y: f.y,
+        extra: f
+    }];
+
+    // couleur dynamique
+    const score = Math.sqrt(
+        (f.x / 100) ** 2 +
+        (f.y / 100) ** 2 +
+        (f.sri / 100) ** 2 +
+        (f.tci / 100) ** 2
+    );
+
+    let color = "green";
+    if (score > 0.75) color = "red";
+    else if (score > 0.5) color = "orange";
+
+    dataset.pointBackgroundColor = [color];
+
+    chart.update("none");
 
     currentFrame = (currentFrame + 1) % allFrames.length;
 
-    if (animating) animationId = requestAnimationFrame(nextFrame);
+    if (animating) requestAnimationFrame(updateFrame);
 }
 
+// ----------------------------------
+// Bouton Play/Pause
+// ----------------------------------
 function toggleAnimation() {
     animating = !animating;
-
     document.getElementById("playPauseBtn").textContent =
         animating ? "Pause" : "Play";
 
-    if (animating) nextFrame();
-    else cancelAnimationFrame(animationId);
+    if (animating) updateFrame();
 }
 
-// -------------------------------
-// Init
-// -------------------------------
+// ----------------------------------
+// Initialisation
+// ----------------------------------
 async function init() {
-    console.log("Chargement historique…");
     allFrames = await loadFramesFromHistory(1800);
 
     if (!allFrames.length) {
-        console.warn("Aucune frame utilisable !");
+        console.warn("Aucune frame trouvée.");
         return;
     }
 
-    console.log("Frames prêtes :", allFrames.length);
+    createChart();
+    updateFrame();
 
-    // Bind events
-    document.getElementById("playPauseBtn").addEventListener("click", toggleAnimation);
-    document.getElementById("applyFilters").addEventListener("click", () => {
-        currentFrame = 0;
-        nextFrame();
-    });
-
-    // Affiche la frame 0
-    renderChart([allFrames[0]]);
+    document.getElementById("playPauseBtn").onclick = toggleAnimation;
 }
 
 window.addEventListener("load", init);
