@@ -100,7 +100,7 @@
     }
   </style>
 </head>
-
+  
 <body>
   <header class="app-header">
     <h1>Stabilité environnementale – Diagramme Nucléide</h1>
@@ -120,29 +120,26 @@
     <section id="stabilitySection">
       <h2>Diagramme de stabilité Nucléide</h2>
 
+      <p>Filtrez les points selon TCI ou SRI :</p>
       <div id="filters">
-        <label>TCI min: <input type="number" id="tciMin" value="0" min="0" max="100"></label>
-        <label>TCI max: <input type="number" id="tciMax" value="100" min="0" max="100"></label>
-        <label>SRI min: <input type="number" id="sriMin" value="0" min="0" max="100"></label>
-        <label>SRI max: <input type="number" id="sriMax" value="100" min="0" max="100"></label>
+        <label>TCI min : <input type="number" id="tciMin" value="0" min="0" max="100" step="1"></label>
+        <label>TCI max : <input type="number" id="tciMax" value="100" min="0" max="100" step="1"></label>
+        <label>SRI min : <input type="number" id="sriMin" value="0" min="0" max="100" step="1"></label>
+        <label>SRI max : <input type="number" id="sriMax" value="100" min="0" max="100" step="1"></label>
         <button id="applyFilters">Appliquer</button>
       </div>
 
       <div id="animationControls" style="margin-bottom:1rem;">
-        <button id="toggleAnimation">Play</button>
+        <button id="playBtn">Play</button>
+        <button id="pauseBtn">Pause</button>
+        <div id="timeSliderContainer" style="margin-top:0.5rem;"></div>
       </div>
 
       <div class="chart-container">
         <canvas id="stabilityChart"></canvas>
       </div>
-      <div id="stabilityLegend" style="margin-top:12px; font-size:0.9em; color:#555;">
-        <strong>Légende :</strong><br>
-        - Fond vert : stable<br>
-        - Fond orange : alerte<br>
-        - Fond rouge : instable<br>
-        - Points : états environnementaux<br>
-        - Tooltip : tous les indices et score global
-      </div>
+
+      <div id="stabilityLegend" style="margin-top:12px; font-size:0.9em; color:#555;"></div>
     </section>
   </main>
 </body>
