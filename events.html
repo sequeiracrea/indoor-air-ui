@@ -83,6 +83,28 @@ canvas {
   padding: 0.2rem;
 }
 
+
+
+    #animationControls button {
+  padding: 0.4rem 0.8rem;
+  border: none;
+  background-color: #3498db;
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+#animationControls button:hover {
+  background-color: #217dbb;
+}
+
+#timeSlider {
+  cursor: pointer;
+}
+
+
+
+    
   </style>
 </head>
 
@@ -113,6 +135,18 @@ canvas {
         <label>SRI max : <input type="number" id="sriMax" value="100" min="0" max="100" step="1"></label>
         <button id="applyFilters">Appliquer</button>
       </div>
+      
+<div id="animationControls" style="margin-bottom:1rem; display:flex; gap:1rem; align-items:center;">
+    <button id="playBtn">▶️ Play</button>
+    <button id="pauseBtn">⏸ Pause</button>
+
+    <label style="margin-left:20px;">Temps :</label>
+    <input type="range" id="timeSlider" min="0" max="49" value="0" step="1" style="width:200px;">
+
+    <label style="margin-left:20px;">
+        <input type="checkbox" id="toggleHeatmap"> Mode heatmap
+    </label>
+</div>
 
       <div class="chart-container">
         <canvas id="stabilityChart"></canvas>
