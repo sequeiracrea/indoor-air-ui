@@ -1,4 +1,4 @@
-/* assets/js/events.js — Version finale stable */
+/* assets/js/events.js */
 
 const STABILITY_COLORS = {
   stable: "rgba(0,200,0,0.15)",
@@ -6,40 +6,51 @@ const STABILITY_COLORS = {
   unstable: "rgba(255,0,0,0.15)"
 };
 
-let stabilityChart = null;
-let allFrames = [];        // tableau des frames GAQI/GEI/SRI/TCI
+const POINT_COLORS = {
+  stable: "green",
+  alert: "orange",
+  unstable: "red"
+};
+
+let stabilityChart;
+let allFrames = [];
 let currentFrame = 0;
-let isPlaying = false;
-let rafId = null;
+let animating = false;
+let animationId;
 
-/* --------------------------------------------
-   1) Charger l’historique depuis API /history
----------------------------------------------*/
-async function fetchFrames(sec = 1800) {
+// ---------------------------------------
+// 🔥 Lecture correcte des indices GAQI/GEI/SRI/TCI
+// ---------------------------------------
+async function loadFramesFromHistory(sec = 1800) {
   try {
-    const h = await window.IndoorAPI.fetchHistory(sec);
-    if (!h || !h.series) return [];
+    const history = await window.IndoorAPI.fetchHistory(sec);
 
-    // Construit une frame avec GAQI/GEI/SRI/TCI
-    return h.series
-      .filter(e => e.indices && typeof e.indices.GAQI === "number")
-      .map(e => ({
-        x: e.indices.GAQI,
-        y: e.indices.GEI,
-        sri: e.indices.SRI,
-        tci: e.indices.TCI,
-        timestamp: e.timestamp
-      }));
+    if (!history || !history.series || !history.series.length) {
+      console.warn("⚠️ Aucune donnée dans /history");
+      return [];
+    }
+
+    const frames = history.series.map(entry => {
+      const idx = entry.indices || {};
+
+      return {
+        x: Number(idx.GAQI || 0),
+        y: Number(idx.GEI || 0),
+        sri: Number(idx.SRI || 0),
+        tci: Number(idx.TCI || 0)
+      };
+    });
+
+    return frames;
   } catch (err) {
-    console.error("Erreur fetchFrames():", err);
+    console.error("Erreur loadFrames:", err);
     return [];
   }
 }
 
-/* --------------------------------------------
-   2) Filtrage SRI / TCI
----------------------------------------------*/
+// ---------------------------------------
 function filterPoints(points, tciMin, tciMax, sriMin, sriMax) {
+  if (!points) return [];
   return points.filter(p =>
     p.tci >= tciMin &&
     p.tci <= tciMax &&
@@ -48,9 +59,7 @@ function filterPoints(points, tciMin, tciMax, sriMin, sriMax) {
   );
 }
 
-/* --------------------------------------------
-   3) Render Chart.js
----------------------------------------------*/
+// ---------------------------------------
 function drawBackground(ctx, chart) {
   const { left, right, top, bottom } = chart.chartArea;
   const w = right - left;
@@ -68,7 +77,8 @@ function drawBackground(ctx, chart) {
   ctx.restore();
 }
 
-function plotFrame(points) {
+// ---------------------------------------
+function renderChart(points) {
   const ctx = document.getElementById("stabilityChart").getContext("2d");
 
   if (stabilityChart) stabilityChart.destroy();
@@ -77,20 +87,32 @@ function plotFrame(points) {
     type: "scatter",
     data: {
       datasets: [{
+        label: "Indice stabilité",
         data: points.map(p => ({ x: p.x, y: p.y, extra: p })),
-        pointBackgroundColor: "rgba(0,120,255,0.9)",
-        pointRadius: 6
+        pointBackgroundColor: points.map(p => {
+          const score = Math.sqrt(
+            (p.x / 100) ** 2 +
+            (p.y / 100) ** 2 +
+            (p.tci / 100) ** 2 +
+            (p.sri / 100) ** 2
+          );
+          if (score > 0.75) return POINT_COLORS.unstable;
+          if (score > 0.5) return POINT_COLORS.alert;
+          return POINT_COLORS.stable;
+        }),
+        pointRadius: 6,
+        pointHoverRadius: 9
       }]
     },
     options: {
-      animation: false,
       responsive: true,
       maintainAspectRatio: false,
       scales: {
-        x: { min: 0, max: 100, title: { text: "GAQI", display: true }},
-        y: { min: 0, max: 100, title: { text: "GEI", display: true }}
+        x: { min: 0, max: 100, title: { display: true, text: "GAQI" } },
+        y: { min: 0, max: 100, title: { display: true, text: "GEI" } }
       },
       plugins: {
+        legend: { display: false },
         tooltip: {
           callbacks: {
             label: ctx => {
@@ -98,82 +120,66 @@ function plotFrame(points) {
               return `GAQI ${p.x}, GEI ${p.y}, SRI ${p.sri}, TCI ${p.tci}`;
             }
           }
-        },
-        legend: { display: false }
+        }
       }
     },
     plugins: [{
-      id: "bgPlugin",
-      beforeDraw: chart => drawBackground(chart.ctx, chart)
+      id: "backgroundPlugin",
+      beforeDraw: c => drawBackground(c.ctx, c)
     }]
   });
 }
 
-/* --------------------------------------------
-   4) Animation
----------------------------------------------*/
+// ---------------------------------------
 function nextFrame() {
+  if (!allFrames.length) return;
+
+  const tciMin = parseFloat(document.getElementById("tciMin").value) || 0;
+  const tciMax = parseFloat(document.getElementById("tciMax").value) || 100;
+  const sriMin = parseFloat(document.getElementById("sriMin").value) || 0;
+  const sriMax = parseFloat(document.getElementById("sriMax").value) || 100;
+
   const frame = allFrames[currentFrame];
-  if (!frame) return;
-
-  const tciMin = +document.getElementById("tciMin").value;
-  const tciMax = +document.getElementById("tciMax").value;
-  const sriMin = +document.getElementById("sriMin").value;
-  const sriMax = +document.getElementById("sriMax").value;
-
-  // frame = UN seul point → mais Chart.js veut un array
   const filtered = filterPoints([frame], tciMin, tciMax, sriMin, sriMax);
 
-  plotFrame(filtered);
+  renderChart(filtered);
 
-  // timeline
-  document.getElementById("timeSlider").value = currentFrame;
-
-  // frame suivante
   currentFrame = (currentFrame + 1) % allFrames.length;
 
-  if (isPlaying) rafId = requestAnimationFrame(nextFrame);
+  if (animating) animationId = requestAnimationFrame(nextFrame);
 }
 
-function togglePlay() {
-  isPlaying = !isPlaying;
-  document.getElementById("playPauseBtn").textContent =
-    isPlaying ? "Pause" : "Play";
-  if (isPlaying) nextFrame();
-  else cancelAnimationFrame(rafId);
+// ---------------------------------------
+function toggleAnimation() {
+  animating = !animating;
+  const btn = document.getElementById("playPauseBtn");
+  btn.textContent = animating ? "Pause" : "Play";
+
+  if (animating) nextFrame();
+  else cancelAnimationFrame(animationId);
 }
 
-/* --------------------------------------------
-   5) INIT
----------------------------------------------*/
+// ---------------------------------------
+function applyFilters() {
+  currentFrame = 0;
+  nextFrame();
+}
+
+// ---------------------------------------
 async function init() {
-  allFrames = await fetchFrames(1800);
+  allFrames = await loadFramesFromHistory(1800);
+
+  console.log("Frames chargées :", allFrames.length);
 
   if (!allFrames.length) {
-    console.error("Aucune frame chargée !");
+    console.warn("⚠️ Pas de frames utilisables.");
     return;
   }
 
-  document.getElementById("timeSlider").max = allFrames.length - 1;
+  document.getElementById("playPauseBtn").addEventListener("click", toggleAnimation);
+  document.getElementById("applyFilters").addEventListener("click", applyFilters);
 
-  // bouton play/pause
-  document.getElementById("playPauseBtn").addEventListener("click", togglePlay);
-
-  // slider timeline
-  document.getElementById("timeSlider").addEventListener("input", e => {
-    currentFrame = +e.target.value;
-    plotFrame([allFrames[currentFrame]]);
-  });
-
-  // filtres
-  ["tciMin","tciMax","sriMin","sriMax"].forEach(id => {
-    document.getElementById(id).addEventListener("input", () => {
-      plotFrame([allFrames[currentFrame]]);
-    });
-  });
-
-  // affiche première frame
-  plotFrame([allFrames[0]]);
+  nextFrame();
 }
 
 window.addEventListener("load", init);
