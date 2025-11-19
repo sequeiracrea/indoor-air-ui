@@ -34,7 +34,7 @@ const score = Math.sqrt(
 
 if (score <= 0.50) return "stable";
 if (score <= 0.75) return "alert";
-return “unstable”;
+return "unstable";
 }
 
 /* —————————————————––
