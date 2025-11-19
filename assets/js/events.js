@@ -1,6 +1,3 @@
-/* assets/js/events.js */
-
-// Couleurs pour fond et points
 const STABILITY_COLORS = {
   stable: "rgba(0,200,0,0.15)",
   alert: "rgba(255,165,0,0.15)",
@@ -14,20 +11,19 @@ const POINT_COLORS = {
 };
 
 let stabilityChart = null;
-let allPoints = [];  // tableau de points transformés
+let allPoints = [];
 let timeIndex = 0;
 let isPlaying = true;
 let animationId = null;
 
 // --------------------------------------------------
-// Transformation des données brutes de l'API
+// Charger les données depuis l'API
 // --------------------------------------------------
 async function loadFramesFromHistory(sec = 1800) {
   try {
     const history = await window.IndoorAPI.fetchHistory(sec);
     const series = history.series || [];
 
-    // Transformer chaque entrée en point utilisable
     const frames = series.map(entry => {
       if (!entry.indices) return null;
       const { GAQI, GEI, TCI, SRI } = entry.indices;
@@ -52,16 +48,12 @@ async function loadFramesFromHistory(sec = 1800) {
 }
 
 // --------------------------------------------------
-// Filtrer points selon TCI et SRI
-// --------------------------------------------------
 function filterPoints(points, tciMin, tciMax, sriMin, sriMax) {
   return points.filter(
     p => p.tci >= tciMin && p.tci <= tciMax && p.sri >= sriMin && p.sri <= sriMax
   );
 }
 
-// --------------------------------------------------
-// Fond type nucléide
 // --------------------------------------------------
 function drawBackground(ctx, chart) {
   const { left, right, top, bottom } = chart.chartArea;
@@ -77,30 +69,24 @@ function drawBackground(ctx, chart) {
 
   ctx.fillStyle = STABILITY_COLORS.unstable;
   ctx.fillRect(left, top + height * 0.5, width, height * 0.5);
-
   ctx.restore();
 }
 
 // --------------------------------------------------
-// Affichage Chart
-// --------------------------------------------------
 function renderChart(points) {
   const ctx = document.getElementById("stabilityChart").getContext("2d");
-
   if (stabilityChart) stabilityChart.destroy();
 
   stabilityChart = new Chart(ctx, {
     type: "scatter",
     data: {
-      datasets: [
-        {
-          label: "État environnemental",
-          data: points.map(p => ({ x: p.x, y: p.y, extra: p })),
-          pointBackgroundColor: points.map(p => POINT_COLORS[p.status]),
-          pointRadius: 6,
-          pointHoverRadius: 10
-        }
-      ]
+      datasets: [{
+        label: "État environnemental",
+        data: points.map(p => ({ x: p.x, y: p.y, extra: p })),
+        pointBackgroundColor: points.map(p => POINT_COLORS[p.status]),
+        pointRadius: 6,
+        pointHoverRadius: 10
+      }]
     },
     options: {
       responsive: true,
@@ -114,31 +100,23 @@ function renderChart(points) {
           callbacks: {
             label: ctx => {
               const p = ctx.raw.extra;
-              return `GAQI: ${p.x.toFixed(1)}, GEI: ${p.y.toFixed(1)}, SRI: ${p.sri.toFixed(
-                1
-              )}, TCI: ${p.tci.toFixed(1)}, Score: ${p.score.toFixed(2)}, État: ${
-                p.status
-              }`;
+              return `GAQI: ${p.x.toFixed(1)}, GEI: ${p.y.toFixed(1)}, SRI: ${p.sri.toFixed(1)}, TCI: ${p.tci.toFixed(1)}, Score: ${p.score.toFixed(2)}, État: ${p.status}`;
             }
           }
         },
         legend: { display: false }
       }
     },
-    plugins: [
-      {
-        id: "backgroundPlugin",
-        beforeDraw: chart => drawBackground(chart.ctx, chart)
-      }
-    ]
+    plugins: [{
+      id: "backgroundPlugin",
+      beforeDraw: chart => drawBackground(chart.ctx, chart)
+    }]
   });
 }
 
 // --------------------------------------------------
-// Animation
-// --------------------------------------------------
 function animateStep() {
-  if (!isPlaying) return;
+  if (!isPlaying || allPoints.length === 0) return;
 
   const tciMin = parseFloat(document.getElementById("tciMin").value);
   const tciMax = parseFloat(document.getElementById("tciMax").value);
@@ -148,7 +126,6 @@ function animateStep() {
   const stepPoints = filterPoints(allPoints[timeIndex], tciMin, tciMax, sriMin, sriMax);
   renderChart(stepPoints);
 
-  // Mettre à jour slider si présent
   const slider = document.getElementById("timeSlider");
   if (slider) slider.value = timeIndex;
 
@@ -158,8 +135,6 @@ function animateStep() {
 }
 
 // --------------------------------------------------
-// Lecture / pause
-// --------------------------------------------------
 function togglePlay() {
   isPlaying = !isPlaying;
   if (isPlaying) animateStep();
@@ -167,11 +142,10 @@ function togglePlay() {
 }
 
 // --------------------------------------------------
-// Curseur temporel
-// --------------------------------------------------
 function setupSlider() {
   const slider = document.getElementById("timeSlider");
-  if (!slider) return;
+  if (!slider || allPoints.length === 0) return;
+
   slider.min = 0;
   slider.max = allPoints.length - 1;
   slider.value = timeIndex;
@@ -189,23 +163,28 @@ function setupSlider() {
 }
 
 // --------------------------------------------------
-// Initialisation
-// --------------------------------------------------
 async function init() {
   allPoints = await loadFramesFromHistory(1800);
-  if (!allPoints.length) return;
+  if (allPoints.length === 0) return;
 
   renderChart(allPoints[0]);
 
-  // Ajouter contrôles
   const playBtn = document.getElementById("playBtn");
   if (playBtn) playBtn.addEventListener("click", togglePlay);
 
-  setupSlider();
+  document.getElementById("applyFilters").addEventListener("click", () => {
+    const tciMin = parseFloat(document.getElementById("tciMin").value);
+    const tciMax = parseFloat(document.getElementById("tciMax").value);
+    const sriMin = parseFloat(document.getElementById("sriMin").value);
+    const sriMax = parseFloat(document.getElementById("sriMax").value);
 
+    const stepPoints = filterPoints(allPoints[timeIndex], tciMin, tciMax, sriMin, sriMax);
+    renderChart(stepPoints);
+  });
+
+  setupSlider();
   animateStep();
 
-  // Légende
   const legend = document.getElementById("stabilityLegend");
   if (legend) {
     legend.innerHTML = `
