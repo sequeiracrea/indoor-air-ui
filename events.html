@@ -133,6 +133,11 @@ canvas {
         <label>SRI min : <input type="number" id="sriMin" value="0" min="0" max="100" step="1"></label>
         <label>SRI max : <input type="number" id="sriMax" value="100" min="0" max="100" step="1"></label>
         <button id="applyFilters">Appliquer</button>
+        <div id="animationControls" style="display:flex;align-items:center;gap:1rem;margin-bottom:1rem;">
+          <button id="playPauseBtn">Play</button>
+          <input type="range" id="timeSlider" min="0" max="0" value="0">
+          <span id="timeLabel">0 / 0</span>
+        </div>
       </div>
 
       <div class="chart-container">
