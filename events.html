@@ -100,7 +100,7 @@
     }
   </style>
 </head>
-  
+
 <body>
   <header class="app-header">
     <h1>Stabilité environnementale – Diagramme Nucléide</h1>
@@ -120,7 +120,13 @@
     <section id="stabilitySection">
       <h2>Diagramme de stabilité Nucléide</h2>
 
-      <p>Filtrez les points selon TCI ou SRI :</p>
+      <!-- Contrôles animation -->
+      <div id="animationControls" style="margin-bottom:1rem;">
+        <button id="playBtn">Pause</button>
+        <input type="range" id="timeSlider" min="0" max="100" style="width:300px;">
+      </div>
+
+      <!-- Filtres TCI/SRI -->
       <div id="filters">
         <label>TCI min : <input type="number" id="tciMin" value="0" min="0" max="100" step="1"></label>
         <label>TCI max : <input type="number" id="tciMax" value="100" min="0" max="100" step="1"></label>
@@ -129,16 +135,12 @@
         <button id="applyFilters">Appliquer</button>
       </div>
 
-      <div id="animationControls" style="margin-bottom:1rem;">
-        <button id="playBtn">Play</button>
-        <button id="pauseBtn">Pause</button>
-        <div id="timeSliderContainer" style="margin-top:0.5rem;"></div>
-      </div>
-
+      <!-- Canvas Chart -->
       <div class="chart-container">
         <canvas id="stabilityChart"></canvas>
       </div>
 
+      <!-- Légende -->
       <div id="stabilityLegend" style="margin-top:12px; font-size:0.9em; color:#555;"></div>
     </section>
   </main>
