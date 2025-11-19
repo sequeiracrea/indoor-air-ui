@@ -45,27 +45,32 @@ function drawBackground(ctx, chart) {
   ctx.restore();
 }
 
-// Render Chart avec trail dégradé
+// Render Chart avec trail dégradé et tailles
 function renderChart(points, trailLength = 60) {
   const ctx = document.getElementById("stabilityChart").getContext("2d");
 
   if (stabilityChart) stabilityChart.destroy();
 
-  // Préparer le trail
   const start = Math.max(0, points.length - trailLength);
   const trailPoints = points.slice(start);
 
-  const colors = trailPoints.map((p, i) => {
-    const alpha = (i + 1) / trailPoints.length; // plus récent = plus opaque
+  // Calcul des couleurs et tailles
+  const colors = [];
+  const sizes = [];
+  trailPoints.forEach((p, i) => {
+    const alpha = (i + 1) / trailPoints.length;
     const score = Math.sqrt((p.x / 100) ** 2 + (p.y / 100) ** 2 + (p.tci / 100) ** 2 + (p.sri / 100) ** 2);
     let baseColor = POINT_COLORS.stable;
     if (score > 0.75) baseColor = POINT_COLORS.unstable;
     else if (score > 0.5) baseColor = POINT_COLORS.alert;
 
-    // RGBA à partir de la couleur
-    if (baseColor === "green") return `rgba(0,200,0,${alpha})`;
-    if (baseColor === "orange") return `rgba(255,165,0,${alpha})`;
-    return `rgba(255,0,0,${alpha})`;
+    // RGBA
+    if (baseColor === "green") colors.push(`rgba(0,200,0,${alpha})`);
+    else if (baseColor === "orange") colors.push(`rgba(255,165,0,${alpha})`);
+    else colors.push(`rgba(255,0,0,${alpha})`);
+
+    // Taille: plus récent = plus gros
+    sizes.push(4 + 6 * alpha); // min 4, max 10
   });
 
   stabilityChart = new Chart(ctx, {
@@ -75,8 +80,8 @@ function renderChart(points, trailLength = 60) {
         label: "État environnemental",
         data: trailPoints.map(p => ({ x: p.x, y: p.y, extra: p })),
         pointBackgroundColor: colors,
-        pointRadius: 6,
-        pointHoverRadius: 10
+        pointRadius: sizes,
+        pointHoverRadius: 12
       }]
     },
     options: {
@@ -95,7 +100,7 @@ function renderChart(points, trailLength = 60) {
             }
           }
         },
-        legend: { display: true }
+        legend: { display: false } // On ajoute la légende dynamique via DOM
       }
     },
     plugins: [{
@@ -103,6 +108,16 @@ function renderChart(points, trailLength = 60) {
       beforeDraw: chart => drawBackground(chart.ctx, chart)
     }]
   });
+
+  // Mettre à jour légende dynamique
+  const legend = document.getElementById("stabilityLegend");
+  legend.innerHTML = `
+    <strong>Légende :</strong><br>
+    <span style="color:green">● Stable</span> &nbsp;
+    <span style="color:orange">● Alerte</span> &nbsp;
+    <span style="color:red">● Instable</span><br>
+    <span>Dégradé de taille / opacité → plus récent = plus visible</span>
+  `;
 }
 
 // Animation
@@ -117,9 +132,8 @@ function nextFrame() {
   const framesToShow = allFrames.slice(0, currentFrame + 1);
   const filtered = filterPoints(framesToShow, tciMin, tciMax, sriMin, sriMax);
 
-  renderChart(filtered, 60); // trailLength = 60
+  renderChart(filtered, 60);
 
-  // Mettre à jour le slider
   const slider = document.getElementById("timeSlider");
   slider.value = currentFrame;
   document.getElementById("timeLabel").textContent = `${currentFrame + 1} / ${allFrames.length}`;
@@ -156,6 +170,7 @@ async function init() {
   allFrames = await loadFramesFromHistory(1800);
   if (!allFrames.length) return;
 
+  // Boutons Play / Pause
   document.getElementById("playPauseBtn").addEventListener("click", toggleAnimation);
   const slider = document.getElementById("timeSlider");
   slider.max = allFrames.length - 1;
