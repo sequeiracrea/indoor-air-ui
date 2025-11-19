@@ -4,15 +4,15 @@
 CONFIG
 ———————————————————*/
 const STABILITY_COLORS = {
-stable: “rgba(0,200,0,0.15)”,
-alert: “rgba(255,165,0,0.15)”,
-unstable: “rgba(255,0,0,0.15)”
+stable: "rgba(0,200,0,0.15)",
+alert: "rgba(255,165,0,0.15)",
+unstable: "rgba(255,0,0,0.15)"
 };
 
 const POINT_COLORS = {
-stable: “green”,
-alert: “orange”,
-unstable: “red”
+stable: "green",
+alert: "orange",
+unstable: "red"
 };
 
 let stabilityChart = null;
@@ -32,8 +32,8 @@ const score = Math.sqrt(
 (p.TCI / 100) ** 2
 );
 
-if (score <= 0.50) return “stable”;
-if (score <= 0.75) return “alert”;
+if (score <= 0.50) return "stable";
+if (score <= 0.75) return "alert";
 return “unstable”;
 }
 
@@ -75,7 +75,7 @@ const frames = series.map(entry => {
 return frames.filter(Boolean);
 
 } catch (err) {
-console.error(“Erreur historique :”, err);
+console.error("Erreur historique :", err);
 return [];
 }
 }
@@ -120,15 +120,15 @@ ctx.restore();
 ———————————————————*/
 function renderChart(points) {
 
-const ctx = document.getElementById(“stabilityChart”);
+const ctx = document.getElementById("stabilityChart");
 
 if (stabilityChart) stabilityChart.destroy();
 
 stabilityChart = new Chart(ctx, {
-type: “scatter”,
+type: "scatter",
 data: {
 datasets: [{
-label: “”,
+label: "",
 data: points.map(p => ({
 x: p.GAQI,
 y: p.GEI,
@@ -145,8 +145,8 @@ options: {
 responsive: true,
 maintainAspectRatio: false,
 scales: {
-x: { min: 0, max: 100, title: { display: true, text: “GAQI” }},
-y: { min: 0, max: 100, title: { display: true, text: “GEI” }}
+x: { min: 0, max: 100, title: { display: true, text: "GAQI" }},
+y: { min: 0, max: 100, title: { display: true, text: "GEI" }}
 },
 plugins: {
 tooltip: {
@@ -162,7 +162,7 @@ legend: { display: false }
 }
 },
 plugins: [{
-id: “bg”,
+id: "bg",
 beforeDraw: drawBackground
 }]
 });
@@ -189,10 +189,10 @@ animationLoop = setTimeout(() => requestAnimationFrame(animate), 450);
 Filtres
 ———————————————————*/
 function applyFilterToPoints(points) {
-const tMin = parseFloat(document.getElementById(“tciMin”).value);
-const tMax = parseFloat(document.getElementById(“tciMax”).value);
-const sMin = parseFloat(document.getElementById(“sriMin”).value);
-const sMax = parseFloat(document.getElementById(“sriMax”).value);
+const tMin = parseFloat(document.getElementById("tciMin").value);
+const tMax = parseFloat(document.getElementById("tciMax").value);
+const sMin = parseFloat(document.getElementById("sriMin").value);
+const sMax = parseFloat(document.getElementById("sriMax").value);
 
 return filterPoints(points, tMin, tMax, sMin, sMax);
 }
@@ -201,7 +201,7 @@ return filterPoints(points, tMin, tMax, sMin, sMax);
 6. Slider
 ———————————————————*/
 function updateSliderUI() {
-const slider = document.getElementById(“timeSlider”);
+const slider = document.getElementById("timeSlider");
 slider.value = currentIndex;
 }
 
@@ -221,15 +221,15 @@ renderChart(filtered);
 7. Play / Pause
 ———————————————————*/
 function togglePlay() {
-const btn = document.getElementById(“playBtn”);
+const btn = document.getElementById("playBtn");
 
 playing = !playing;
 
 if (playing) {
-btn.textContent = “Pause”;
+btn.textContent = "Pause";
 animate();
 } else {
-btn.textContent = “Play”;
+btn.textContent = "Play";
 clearTimeout(animationLoop);
 }
 }
@@ -242,11 +242,11 @@ async function init() {
 allFrames = await loadFramesFromHistory();
 
 if (!allFrames.length) {
-console.warn(“Aucune donnée, canvas vide.”);
+console.warn("Aucune donnée, canvas vide.");
 return;
 }
 
-const slider = document.getElementById(“timeSlider”);
+const slider = document.getElementById("timeSlider");
 slider.max = allFrames.length - 1;
 
 // Première image :
@@ -256,12 +256,12 @@ renderChart(allFrames[0].points);
 animate();
 
 // Events
-document.getElementById(“playBtn”).addEventListener(“click”, togglePlay);
-document.getElementById(“timeSlider”).addEventListener(“input”, onSliderMove);
-document.getElementById(“applyFilters”).addEventListener(“click”, () => {
+document.getElementById("playBtn").addEventListener("click", togglePlay);
+document.getElementById("timeSlider").addEventListener("input", onSliderMove);
+document.getElementById("applyFilters").addEventListener("click", () => {
 const pts = allFrames[currentIndex].points;
 renderChart(applyFilterToPoints(pts));
 });
 }
 
-window.addEventListener(“load”, init);
+window.addEventListener("load", init);
