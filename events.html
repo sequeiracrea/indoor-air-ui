@@ -7,6 +7,98 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="assets/js/api.js" defer></script>
   <script src="assets/js/events.js" defer></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #fafafa;
+    }
+    
+    .app-header {
+      background-color: #3498db;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+    
+    .top-nav {
+      display: flex;
+      gap: 1rem;
+      padding: 0.5rem 1rem;
+      background-color: #eee;
+    }
+    
+    .top-nav a {
+      text-decoration: none;
+      color: #333;
+      padding: 0.3rem 0.6rem;
+      border-radius: 4px;
+    }
+    
+    .top-nav a.active, .top-nav a:hover {
+      background-color: #3498db;
+      color: white;
+    }
+    
+    .container {
+      padding: 1rem;
+    }
+    
+    #stabilitySection {
+      max-width: 1000px;
+      margin: auto;
+    }
+    
+    .chart-container {
+      width: 100%;
+      height: 500px;
+      position: relative;
+    }
+    
+    canvas {
+      background-color: white;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      width: 100% !important;
+      height: 100% !important;
+    }
+    
+    #filters {
+      display: flex;
+      gap: 1rem;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+    
+    #filters label {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+    }
+    
+    #filters input {
+      width: 60px;
+      padding: 0.2rem;
+    }
+    
+    #animationControls button {
+      padding: 0.4rem 0.8rem;
+      border: none;
+      background-color: #3498db;
+      color: white;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    
+    #animationControls button:hover {
+      background-color: #217dbb;
+    }
+    
+    #timeSlider {
+      cursor: pointer;
+    }
+  </style>
 </head>
 
 <body>
