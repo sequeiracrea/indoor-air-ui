@@ -1,77 +1,58 @@
 /* assets/js/events.js */
-const STABILITY_COLORS = { stable: "rgba(0,200,0,0.15)", alert: "rgba(255,165,0,0.15)", unstable: "rgba(255,0,0,0.15)" };
-const POINT_COLORS = { stable: "green", alert: "orange", unstable: "red" };
-
-let stabilityChart;
-let allFrames = [];
+let allFrames = []; // tableau de frames, chaque frame = tableau de points
 let timeIndex = 0;
-let animating = true;
+let playing = true;
+let stabilityChart = null;
+const POINT_COLORS = { stable: "green", alert: "orange", unstable: "red" };
+const STABILITY_COLORS = {
+  stable: "rgba(0,200,0,0.15)",
+  alert: "rgba(255,165,0,0.15)",
+  unstable: "rgba(255,0,0,0.15)"
+};
+const POINTS_PER_FRAME = 50;
 
-// --- Play/Pause / Slider ---
-function toggleAnimation() {
-  animating = !animating;
-  document.getElementById("playPause").textContent = animating ? "Pause" : "Play";
-}
-
-function setSliderMax(max) {
-  const slider = document.getElementById("timeSlider");
-  if(slider) {
-    slider.max = max - 1;
-    slider.value = timeIndex;
+// --- Génération de points autour d'un indice ---
+function generatePoints(entry) {
+  const points = [];
+  for (let i = 0; i < POINTS_PER_FRAME; i++) {
+    const GAQI = entry.GAQI + (Math.random() - 0.5) * 5;
+    const GEI = entry.GEI + (Math.random() - 0.5) * 5;
+    const TCI = entry.TCI;
+    const SRI = entry.SRI;
+    const score = Math.sqrt((GAQI/100)**2 + (GEI/100)**2 + (TCI/100)**2 + (SRI/100)**2);
+    let status = "stable";
+    if(score > 0.5 && score <= 0.75) status="alert";
+    else if(score > 0.75) status="unstable";
+    points.push({ x: GAQI, y: GEI, tci: TCI, sri: SRI, score, status });
   }
+  return points;
 }
 
-function updateFromSlider() {
-  const slider = document.getElementById("timeSlider");
-  if(slider) {
-    timeIndex = parseInt(slider.value);
-    renderCurrentFrame();
-  }
-}
-
-// --- Calcul des indices pour chaque mesure si absent ---
-function computeIndicesForEntry(entry) {
-  if(entry.indices) return entry.indices; // déjà présent
-  if(window.computeIndices) return computeIndices(entry.measures, []); // utilise utils/indices.js exposé global
-  // fallback rapide
-  const GAQI = Math.random()*100;
-  const GEI = Math.random()*100;
-  const TCI = Math.random()*100;
-  const SRI = Math.random()*100;
-  return { GAQI, GEI, TCI, SRI };
-}
-
-// --- Filtrage ---
-function filterPoints(points, tciMin, tciMax, sriMin, sriMax) {
-  return points.filter(p => p.tci >= tciMin && p.tci <= tciMax && p.sri >= sriMin && p.sri <= sriMax);
-}
-
-// --- Fond type nucléide ---
-function drawBackground(ctx, chart) {
-  const { left, right, top, bottom } = chart.chartArea;
-  const width = right - left;
-  const height = bottom - top;
+// --- Zones fond ---
+function drawBackground(ctx, chart){
+  const {left, right, top, bottom} = chart.chartArea;
+  const width = right-left;
+  const height = bottom-top;
   ctx.save();
   ctx.fillStyle = STABILITY_COLORS.stable;
-  ctx.fillRect(left, top, width * 0.5, height * 0.5);
+  ctx.fillRect(left, top, width*0.5, height*0.5);
   ctx.fillStyle = STABILITY_COLORS.alert;
-  ctx.fillRect(left + width * 0.5, top, width * 0.5, height * 0.5);
+  ctx.fillRect(left+width*0.5, top, width*0.5, height*0.5);
   ctx.fillStyle = STABILITY_COLORS.unstable;
-  ctx.fillRect(left, top + height * 0.5, width, height * 0.5);
+  ctx.fillRect(left, top+height*0.5, width, height*0.5);
   ctx.restore();
 }
 
 // --- Render Chart ---
-function renderChart(points) {
+function renderChart(points){
   const ctx = document.getElementById("stabilityChart").getContext("2d");
   if(stabilityChart) stabilityChart.destroy();
-
   stabilityChart = new Chart(ctx, {
     type: 'scatter',
     data: {
       datasets: [{
-        label: 'État environnemental',
-        data: points.map(p => ({ x: p.GAQI, y: p.GEI, extra: p })),
+        label: "État environnemental",
+        data: points.map(p => ({ x: p.x, y: p.y, extra: p })),
         pointBackgroundColor: points.map(p => POINT_COLORS[p.status]),
         pointRadius: 6,
         pointHoverRadius: 10
@@ -80,20 +61,20 @@ function renderChart(points) {
     options: {
       responsive: true,
       maintainAspectRatio: false,
+      scales: {
+        x: { title: { display: true, text: "GAQI" }, min: 0, max: 100 },
+        y: { title: { display: true, text: "GEI" }, min: 0, max: 100 }
+      },
       plugins: {
         tooltip: {
           callbacks: {
             label: ctx => {
               const p = ctx.raw.extra;
-              return `GAQI: ${p.GAQI.toFixed(1)}, GEI: ${p.GEI.toFixed(1)}, SRI: ${p.SRI.toFixed(1)}, TCI: ${p.TCI.toFixed(1)}, Score: ${p.score.toFixed(2)}, État: ${p.status}`;
+              return `GAQI:${p.x.toFixed(1)}, GEI:${p.y.toFixed(1)}, SRI:${p.sri.toFixed(1)}, TCI:${p.tci.toFixed(1)}, Score:${p.score.toFixed(2)}, Etat:${p.status}`;
             }
           }
         },
         legend: { display: false }
-      },
-      scales: {
-        x: { title: { display: true, text: "GAQI" }, min: 0, max: 100 },
-        y: { title: { display: true, text: "GEI" }, min: 0, max: 100 }
       }
     },
     plugins: [{
@@ -103,76 +84,64 @@ function renderChart(points) {
   });
 }
 
-// --- Render frame actuelle selon timeIndex ---
-function renderCurrentFrame() {
+// --- Animation ---
+function nextFrame(){
   if(!allFrames.length) return;
+
   const tciMin = parseFloat(document.getElementById("tciMin").value);
   const tciMax = parseFloat(document.getElementById("tciMax").value);
   const sriMin = parseFloat(document.getElementById("sriMin").value);
   const sriMax = parseFloat(document.getElementById("sriMax").value);
 
-  const stepPoints = filterPoints(allFrames[timeIndex], tciMin, tciMax, sriMin, sriMax);
-  renderChart(stepPoints);
+  let framePoints = allFrames[timeIndex].filter(p => 
+    p.tci >= tciMin && p.tci <= tciMax && p.sri >= sriMin && p.sri <= sriMax
+  );
+
+  renderChart(framePoints);
 
   const slider = document.getElementById("timeSlider");
   if(slider) slider.value = timeIndex;
+
+  timeIndex = (timeIndex + 1) % allFrames.length;
+  if(playing) requestAnimationFrame(() => setTimeout(nextFrame, 400));
 }
 
-// --- Animation ---
-function animate() {
-  if(animating) {
-    timeIndex = (timeIndex + 1) % allFrames.length;
-    renderCurrentFrame();
-  }
-  requestAnimationFrame(animate);
-}
-
-// --- Application filtre manuel ---
-function applyFilters() {
-  renderCurrentFrame();
+// --- Play / Pause ---
+function togglePlay() {
+  playing = !playing;
+  document.getElementById("playPause").textContent = playing ? "Pause" : "Play";
+  if(playing) nextFrame();
 }
 
 // --- Initialisation ---
-async function init() {
+async function init(){
   try {
-    const json = await window.IndoorAPI.fetchHistory(3600);
+    const res = await fetch(`${window.IndoorAPI.API_BASE}/history?sec=1800`);
+    const json = await res.json();
     const series = json.series || [];
     if(!series.length) return;
 
-    // Construire frames avec indices et status
-    allFrames = series.map(entry => {
-      const indices = computeIndicesForEntry(entry);
-      const score = Math.sqrt((indices.GAQI/100)**2 + (indices.GEI/100)**2 + (indices.TCI/100)**2 + (indices.SRI/100)**2);
-      let status = "stable";
-      if(score > 0.5 && score <= 0.75) status = "alert";
-      else if(score > 0.75) status = "unstable";
-      return { ...indices, score, status };
-    });
+    // Génération des frames
+    allFrames = series.map(entry => generatePoints(entry.indices));
 
-    // Setup slider
-    setSliderMax(allFrames.length);
-
-    // Events UI
-    document.getElementById("applyFilters").addEventListener("click", applyFilters);
+    // Slider setup
     const slider = document.getElementById("timeSlider");
-    if(slider) slider.addEventListener("input", updateFromSlider);
-    const btnPlay = document.getElementById("playPause");
-    if(btnPlay) btnPlay.addEventListener("click", toggleAnimation);
+    if(slider){
+      slider.min = 0;
+      slider.max = allFrames.length - 1;
+      slider.value = 0;
+      slider.addEventListener("input", e => {
+        timeIndex = parseInt(e.target.value,10);
+        nextFrame();
+      });
+    }
 
-    // Initial render
-    renderCurrentFrame();
-    animate();
+    // Play/Pause button
+    const btn = document.getElementById("playPause");
+    if(btn) btn.addEventListener("click", togglePlay);
 
-    document.getElementById("stabilityLegend").innerHTML = `
-      <strong>Légende :</strong><br>
-      - Fond vert : stable<br>
-      - Fond orange : alerte<br>
-      - Fond rouge : instable<br>
-      - Points : états simulés par frame<br>
-      - Tooltip : tous les indices et score global
-    `;
-
-  } catch(err) {
+    nextFrame();
+  } catch(err){
     console.error("Erreur historique :", err);
   }
 }
