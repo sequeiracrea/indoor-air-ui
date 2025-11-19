@@ -1,6 +1,6 @@
 /* -------------------------------------------------------
    STABILITÉ – DIAGRAMME DE TYPE NUCLÉIDE
-   Source réelle : https://indoor-sim-server.onrender.com/data
+   Source réelle via IndoorAPI (api.js)
 --------------------------------------------------------- */
 
 const STABILITY_COLORS = {
@@ -16,84 +16,49 @@ const POINT_COLORS = {
 };
 
 let stabilityChart;
-let frames = [];     // Contiendra 300 frames → ~5 min d’animation
+let frames = [];
 let timeIndex = 0;
 let animationActive = true;
 
-const maxFrames = 200;  // Animation courte mais fluide
-
 /* -------------------------------------------------------
-   1) Fetch de données réelles
+   1) Charger l’historique réel depuis l’API Indoor
 --------------------------------------------------------- */
 
-async function fetchRealData() {
+async function loadFramesFromHistory() {
   try {
-    const res = await fetch("https://indoor-sim-server.onrender.com/data");
-    return await res.json();
-  } catch (err) {
-    console.error("❌ API fetch error:", err);
-    return null;
+    const history = await IndoorAPI.fetchHistory(3600); // 1h d’historique
+    const list = history.series || [];
+    frames = list.map(entry => {
+      const { GAQI, GEI, SRI, TCI } = entry.indices;
+
+      const score = Math.sqrt(
+        (GAQI/100)**2 +
+        (GEI /100)**2 +
+        (SRI /100)**2 +
+        (TCI /100)**2
+      );
+
+      let status = "stable";
+      if (score > 0.5 && score <= 0.75) status = "alert";
+      else if (score > 0.75) status = "unstable";
+
+      return {
+        x: GAQI,
+        y: GEI,
+        sri: SRI,
+        tci: TCI,
+        ts: entry.timestamp,
+        status,
+        score
+      };
+    });
+  } catch(err) {
+    console.error("Erreur historique :", err);
   }
 }
 
 /* -------------------------------------------------------
-   2) Création d’une frame à partir des vraies données
---------------------------------------------------------- */
-
-function buildFrameFromReal(json) {
-  if (!json || !json.indices) return null;
-
-  const { GAQI, GEI, SRI, TCI } = json.indices;
-
-  const score = Math.sqrt(
-    (GAQI/100)**2 +
-    (GEI/100)**2 +
-    (SRI/100)**2 +
-    (TCI/100)**2
-  );
-
-  let status = "stable";
-  if (score > 0.5 && score <= 0.75) status = "alert";
-  else if (score > 0.75) status = "unstable";
-
-  return {
-    x: GAQI,
-    y: GEI,
-    sri: SRI,
-    tci: TCI,
-    status,
-    score
-  };
-}
-
-/* -------------------------------------------------------
-   3) Ajout continu de frames → animation réelle
---------------------------------------------------------- */
-
-async function accumulateFrames() {
-  const data = await fetchRealData();
-  const frame = buildFrameFromReal(data);
-  if (frame) {
-    frames.push(frame);
-    if (frames.length > maxFrames) frames.shift();
-  }
-}
-
-/* -------------------------------------------------------
-   4) Filtre TCI / SRI
---------------------------------------------------------- */
-
-function filterFrame(p, tciMin, tciMax, sriMin, sriMax) {
-  return (
-    p.tci >= tciMin &&
-    p.tci <= tciMax &&
-    p.sri >= sriMin &&
-    p.sri <= sriMax
-  );
-}
-
-/* -------------------------------------------------------
-   5) Fond “Nucléide”
+   2) Fond type “nucléide”
 --------------------------------------------------------- */
 
 function drawBackground(ctx, chart) {
@@ -102,8 +67,6 @@ function drawBackground(ctx, chart) {
   const h = bottom - top;
 
   ctx.save();
-
-  // Quadrants
   ctx.fillStyle = STABILITY_COLORS.stable;
   ctx.fillRect(left, top, w * 0.5, h * 0.5);
 
@@ -112,17 +75,15 @@ function drawBackground(ctx, chart) {
 
   ctx.fillStyle = STABILITY_COLORS.unstable;
   ctx.fillRect(left, top + h * 0.5, w, h * 0.5);
-
   ctx.restore();
 }
 
 /* -------------------------------------------------------
-   6) Render chart propre (ne clignote pas)
+   3) Affichage d’une frame
 --------------------------------------------------------- */
 
 function renderChart(point) {
   const ctx = document.getElementById("stabilityChart").getContext("2d");
-
   if (!point) return;
 
   const dataset = [{
@@ -139,7 +100,6 @@ function renderChart(point) {
     return;
   }
 
-  // Création du chart une seule fois
   stabilityChart = new Chart(ctx, {
     type: "scatter",
     data: { datasets: dataset },
@@ -158,11 +118,12 @@ function renderChart(point) {
               const p = ctx.raw.extra;
               return [
                 `GAQI : ${p.x.toFixed(1)}`,
-                `GEI : ${p.y.toFixed(1)}`,
-                `SRI : ${p.sri.toFixed(1)}`,
-                `TCI : ${p.tci.toFixed(1)}`,
+                `GEI :  ${p.y.toFixed(1)}`,
+                `SRI :  ${p.sri.toFixed(1)}`,
+                `TCI :  ${p.tci.toFixed(1)}`,
                 `Score : ${p.score.toFixed(2)}`,
-                `État : ${p.status}`
+                `État : ${p.status}`,
+                `Time : ${p.ts}`
               ];
             }
           }
@@ -177,15 +138,13 @@ function renderChart(point) {
 }
 
 /* -------------------------------------------------------
-   7) Animation fluide sans “reboot visuel”
+   4) Animation fluide
 --------------------------------------------------------- */
 
-async function animate() {
-  if (animationActive) {
-    await accumulateFrames();
-
+function animate() {
+  if (animationActive && frames.length) {
     const point = frames[timeIndex];
-    if (point) renderChart(point);
+    renderChart(point);
 
     timeIndex = (timeIndex + 1) % frames.length;
     document.getElementById("timeline").value = timeIndex;
@@ -195,26 +154,20 @@ async function animate() {
 }
 
 /* -------------------------------------------------------
-   8) Gestion timeline
+   5) Timeline + Play / Pause
 --------------------------------------------------------- */
 
-function setupTimeline() {
-  const slider = document.getElementById("timeline");
-  slider.max = maxFrames;
+function setupControls() {
+  const timeline = document.getElementById("timeline");
+  const btn = document.getElementById("playPause");
 
-  slider.addEventListener("input", () => {
-    timeIndex = parseInt(slider.value);
+  timeline.max = 1; // sera mis à jour après loadFrames
+
+  timeline.addEventListener("input", () => {
     animationActive = false;
+    timeIndex = parseInt(timeline.value);
     renderChart(frames[timeIndex]);
   });
-}
-
-/* -------------------------------------------------------
-   9) Bouton play/pause
---------------------------------------------------------- */
-
-function setupPlayPause() {
-  const btn = document.getElementById("playPause");
 
   btn.addEventListener("click", () => {
     animationActive = !animationActive;
@@ -223,21 +176,26 @@ function setupPlayPause() {
 }
 
 /* -------------------------------------------------------
-   10) Initialisation
+   6) Initialisation
 --------------------------------------------------------- */
 
-window.addEventListener("load", () => {
-  setupTimeline();
-  setupPlayPause();
+async function init() {
+  await loadFramesFromHistory();
+
+  const timeline = document.getElementById("timeline");
+  timeline.max = frames.length - 1;
+
+  setupControls();
   animate();
 
   document.getElementById("stabilityLegend").innerHTML = `
     <strong>Légende :</strong><br>
-    • Vert = stable<br>
-    • Orange = alerte<br>
-    • Rouge = instable<br>
-    • Tooltip = tous les indices + score<br>
-    • Timeline = navigation temporelle<br>
-    • Animation = données API rafraîchies en continu
+    • GAQI vs GEI animés depuis l’historique réel<br>
+    • Fond : zones de stabilité<br>
+    • Points colorés selon le score<br>
+    • Timeline : navigation temporelle<br>
+    • Pause/play : contrôler l’évolution<br>
   `;
-});
+}
+
+window.addEventListener("load", init);
