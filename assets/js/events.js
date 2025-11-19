@@ -1,4 +1,9 @@
-const STABILITY_COLORS = { stable: "rgba(0,200,0,0.15)", alert: "rgba(255,165,0,0.15)", unstable: "rgba(255,0,0,0.15)" };
+const STABILITY_COLORS = {
+  stable: "rgba(0,200,0,0.15)",
+  alert: "rgba(255,165,0,0.15)",
+  unstable: "rgba(255,0,0,0.15)"
+};
+
 const POINT_COLORS = { stable: "green", alert: "orange", unstable: "red" };
 
 let stabilityChart;
@@ -7,29 +12,33 @@ let currentFrame = 0;
 let animating = false;
 let animationId;
 
-// Chargement historique depuis API
+const TRAIL_LENGTH = 60;  // nombre de frames conservées pour trail
+const MICRO_POINTS = 30;   // nombre de micro-points statiques (optionnel)
+
 async function loadFramesFromHistory(sec = 1800) {
   try {
     const history = await window.IndoorAPI.fetchHistory(sec);
-    if (!history?.series?.length) return [];
+    if (!history || !history.series || !history.series.length) return [];
 
-    return history.series.map(entry => {
+    // Chaque frame contient x,y,tci,sri
+    const frames = history.series.map(entry => {
       const idx = entry.indices || {};
       const { GAQI = 0, GEI = 0, SRI = 0, TCI = 0 } = idx;
       return { x: GAQI, y: GEI, sri: SRI, tci: TCI };
     });
+
+    return frames;
   } catch (err) {
     console.error("Erreur historique :", err);
     return [];
   }
 }
 
-// Filtrer points selon TCI et SRI
 function filterPoints(points, tciMin, tciMax, sriMin, sriMax) {
+  if (!points || !points.length) return [];
   return points.filter(p => p.tci >= tciMin && p.tci <= tciMax && p.sri >= sriMin && p.sri <= sriMax);
 }
 
-// Zones de fond type nucléide
 function drawBackground(ctx, chart) {
   const { left, right, top, bottom } = chart.chartArea;
   const width = right - left;
@@ -45,52 +54,22 @@ function drawBackground(ctx, chart) {
   ctx.restore();
 }
 
-// Render Chart avec trail dégradé et tailles
-function renderChart(points, trailLength = 60) {
+function initChart() {
   const ctx = document.getElementById("stabilityChart").getContext("2d");
-
-  if (stabilityChart) stabilityChart.destroy();
-
-  const start = Math.max(0, points.length - trailLength);
-  const trailPoints = points.slice(start);
-
-  // Calcul des couleurs et tailles
-  const colors = [];
-  const sizes = [];
-  trailPoints.forEach((p, i) => {
-    const alpha = (i + 1) / trailPoints.length;
-    const score = Math.sqrt((p.x / 100) ** 2 + (p.y / 100) ** 2 + (p.tci / 100) ** 2 + (p.sri / 100) ** 2);
-    let baseColor = POINT_COLORS.stable;
-    if (score > 0.75) baseColor = POINT_COLORS.unstable;
-    else if (score > 0.5) baseColor = POINT_COLORS.alert;
-
-    // RGBA
-    if (baseColor === "green") colors.push(`rgba(0,200,0,${alpha})`);
-    else if (baseColor === "orange") colors.push(`rgba(255,165,0,${alpha})`);
-    else colors.push(`rgba(255,0,0,${alpha})`);
-
-    // Taille: plus récent = plus gros
-    sizes.push(4 + 6 * alpha); // min 4, max 10
-  });
-
   stabilityChart = new Chart(ctx, {
     type: "scatter",
     data: {
       datasets: [{
         label: "État environnemental",
-        data: trailPoints.map(p => ({ x: p.x, y: p.y, extra: p })),
-        pointBackgroundColor: colors,
-        pointRadius: sizes,
-        pointHoverRadius: 12
+        data: [],
+        pointBackgroundColor: [],
+        pointRadius: 6,
+        pointHoverRadius: 10
       }]
     },
     options: {
       responsive: true,
       maintainAspectRatio: false,
-      scales: {
-        x: { min: 0, max: 100, title: { display: true, text: "GAQI" } },
-        y: { min: 0, max: 100, title: { display: true, text: "GEI" } }
-      },
       plugins: {
         tooltip: {
           callbacks: {
@@ -100,7 +79,11 @@ function renderChart(points, trailLength = 60) {
             }
           }
         },
-        legend: { display: false } // On ajoute la légende dynamique via DOM
+        legend: { display: false }
+      },
+      scales: {
+        x: { min: 0, max: 100, title: { display: true, text: "GAQI" } },
+        y: { min: 0, max: 100, title: { display: true, text: "GEI" } }
       }
     },
     plugins: [{
@@ -108,19 +91,34 @@ function renderChart(points, trailLength = 60) {
       beforeDraw: chart => drawBackground(chart.ctx, chart)
     }]
   });
-
-  // Mettre à jour légende dynamique
-  const legend = document.getElementById("stabilityLegend");
-  legend.innerHTML = `
-    <strong>Légende :</strong><br>
-    <span style="color:green">● Stable</span> &nbsp;
-    <span style="color:orange">● Alerte</span> &nbsp;
-    <span style="color:red">● Instable</span><br>
-    <span>Dégradé de taille / opacité → plus récent = plus visible</span>
-  `;
 }
 
-// Animation
+function updateChartTrail(filtered) {
+  // Ajoute les points à l'historique trail
+  if (!stabilityChart) return;
+
+  let trailData = stabilityChart.data.datasets[0].data || [];
+  trailData.push(...filtered.map(p => ({ x: p.x, y: p.y, extra: p })));
+  if (trailData.length > TRAIL_LENGTH) trailData = trailData.slice(-TRAIL_LENGTH);
+
+  // Taille variable des points selon récence
+  const sizes = trailData.map((_, i) => 4 + (i / trailData.length) * 6);
+
+  // Couleurs selon score
+  const colors = trailData.map(p => {
+    const score = Math.sqrt((p.extra.x / 100) ** 2 + (p.extra.y / 100) ** 2 + (p.extra.tci / 100) ** 2 + (p.extra.sri / 100) ** 2);
+    if (score > 0.75) return POINT_COLORS.unstable;
+    if (score > 0.5) return POINT_COLORS.alert;
+    return POINT_COLORS.stable;
+  });
+
+  stabilityChart.data.datasets[0].data = trailData;
+  stabilityChart.data.datasets[0].pointRadius = sizes;
+  stabilityChart.data.datasets[0].pointBackgroundColor = colors;
+
+  stabilityChart.update("none");
+}
+
 function nextFrame() {
   if (!allFrames.length) return;
 
@@ -129,20 +127,13 @@ function nextFrame() {
   const sriMin = parseFloat(document.getElementById("sriMin").value) || 0;
   const sriMax = parseFloat(document.getElementById("sriMax").value) || 100;
 
-  const framesToShow = allFrames.slice(0, currentFrame + 1);
-  const filtered = filterPoints(framesToShow, tciMin, tciMax, sriMin, sriMax);
-
-  renderChart(filtered, 60);
-
-  const slider = document.getElementById("timeSlider");
-  slider.value = currentFrame;
-  document.getElementById("timeLabel").textContent = `${currentFrame + 1} / ${allFrames.length}`;
+  const filtered = filterPoints([allFrames[currentFrame]], tciMin, tciMax, sriMin, sriMax);
+  updateChartTrail(filtered);
 
   currentFrame = (currentFrame + 1) % allFrames.length;
   if (animating) animationId = requestAnimationFrame(nextFrame);
 }
 
-// Play / Pause
 function toggleAnimation() {
   animating = !animating;
   const btn = document.getElementById("playPauseBtn");
@@ -151,33 +142,42 @@ function toggleAnimation() {
   else cancelAnimationFrame(animationId);
 }
 
-// Slider manuel
-function onSliderChange(e) {
-  animating = false;
-  cancelAnimationFrame(animationId);
-  currentFrame = parseInt(e.target.value);
-  nextFrame();
-}
-
-// Appliquer filtre manuel
 function applyFilters() {
   currentFrame = 0;
-  nextFrame();
+  if (!animating) nextFrame();
 }
 
-// Init
+function initLegend() {
+  const leg = document.getElementById("stabilityLegend");
+  leg.innerHTML = `
+    <strong>Légende :</strong><br>
+    Fond vert : stable<br>
+    Fond orange : alerte<br>
+    Fond rouge : instable<br>
+    Points : état + récence (taille)<br>
+    Tooltip : GAQI, GEI, SRI, TCI
+  `;
+}
+
 async function init() {
+  initChart();
   allFrames = await loadFramesFromHistory(1800);
   if (!allFrames.length) return;
 
-  // Boutons Play / Pause
-  document.getElementById("playPauseBtn").addEventListener("click", toggleAnimation);
-  const slider = document.getElementById("timeSlider");
-  slider.max = allFrames.length - 1;
-  slider.addEventListener("input", onSliderChange);
+  // Play/Pause button
+  const btn = document.createElement("button");
+  btn.id = "playPauseBtn";
+  btn.textContent = "Play";
+  btn.addEventListener("click", toggleAnimation);
+  document.getElementById("filters").appendChild(btn);
 
+  // Appliquer filtres
   document.getElementById("applyFilters").addEventListener("click", applyFilters);
 
+  // Légende
+  initLegend();
+
+  // Premier rendu
   nextFrame();
 }
 
