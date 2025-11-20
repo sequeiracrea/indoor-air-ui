@@ -89,7 +89,39 @@ async function buildFramesFromHistory(sec=1800, micro=MICRO_POINTS){
 const nucleusBackgroundPlugin = {
   id: 'nucleusBackground',
   beforeDraw: chart => {
+    if(!chart.chartArea) return;
     const ctx = chart.ctx;
+    const {left, right, top, bottom} = chart.chartArea;
+    const width = right - left;
+    const height = bottom - top;
+
+    ctx.save();
+
+    // Quadrants diagonaux : simple et lisible
+    // Top-left : stable
+    ctx.fillStyle = STABILITY_COLORS.stable;
+    ctx.fillRect(left, top, width/2, height/2);
+
+    // Top-right : alert
+    ctx.fillStyle = STABILITY_COLORS.alert;
+    ctx.fillRect(left + width/2, top, width/2, height/2);
+
+    // Bottom-left : alert
+    ctx.fillStyle = STABILITY_COLORS.alert;
+    ctx.fillRect(left, top + height/2, width/2, height/2);
+
+    // Bottom-right : unstable
+    ctx.fillStyle = STABILITY_COLORS.unstable;
+    ctx.fillRect(left + width/2, top + height/2, width/2, height/2);
+
+    ctx.restore();
+  }
+};
+
+/*  const nucleusBackgroundPlugin = {
+     id: 'nucleusBackground',
+     beforeDraw: chart => {
+     const ctx = chart.ctx;
     const {left, right, top, bottom, width, height} = chart.chartArea ? {...chart.chartArea, width: chart.chartArea.right - chart.chartArea.left, height: chart.chartArea.bottom - chart.chartArea.top} : {};
     if(!chart.chartArea) return;
     // Clear is already done by Chart.js; draw background pattern
@@ -145,9 +177,11 @@ const nucleusBackgroundPlugin = {
     }
 
     ctx.restore();
-  }
-};
 
+  }   
+};
+*/
+     
 // --- INITIALISER LE CHART (création une fois) ---
 function initChart(initialPoints = []){
   const ctx = document.getElementById("stabilityChart").getContext("2d");
