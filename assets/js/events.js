@@ -1,4 +1,4 @@
-/* assets/js/events.js */
+/* assets/js/events.js - Heatmap améliorée avec grille fine */
 
 // Couleurs des quadrants
 const QUADRANT_COLORS = {
@@ -8,9 +8,9 @@ const QUADRANT_COLORS = {
   Q4: [255, 50, 50]
 };
 
-const TRAIL_LENGTH = 60;      // Nombre de frames pour le halo
-const HEAT_RADIUS = 40;       // Rayon du halo
-const HEAT_INTENSITY = 0.08;  // Intensité du halo
+const TRAIL_LENGTH = 60;       // Nombre de frames pour le halo
+const HEAT_RADIUS = 40;        // Rayon du halo
+const HEAT_INTENSITY = 0.08;   // Intensité du halo
 
 let canvas, ctx;
 let allFrames = [];
@@ -18,7 +18,7 @@ let currentFrame = 0;
 let animating = false;
 let animationId;
 
-// Retourne la couleur RGBA selon quadrant
+// Retourne couleur RGBA selon quadrant
 function getPointColor(x, y, alpha=0.6) {
   const cx = 50, cy = 50;
   let base;
@@ -52,10 +52,11 @@ async function loadFrames(sec=1800){
 // Grille fine + axes centraux
 function drawGrid(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.strokeStyle="#ddd";
-  ctx.lineWidth=0.3;
 
-  for(let i=0;i<=100;i+=5){  // grille plus fine
+  ctx.strokeStyle="#ddd";
+  ctx.lineWidth=0.2;
+
+  for(let i=0;i<=100;i+=2){  // grille très fine
     ctx.beginPath();
     ctx.moveTo(i/100*canvas.width,0);
     ctx.lineTo(i/100*canvas.width,canvas.height);
@@ -67,7 +68,7 @@ function drawGrid(){
     ctx.stroke();
   }
 
-  // axes centraux
+  // axes centraux plus visibles
   ctx.strokeStyle="#999";
   ctx.lineWidth=1;
   ctx.beginPath();
@@ -81,27 +82,44 @@ function drawGrid(){
   ctx.stroke();
 }
 
-// Dessiner le halo heatmap fusionné
-function drawHeat(){
+// Dessiner heatmap continue
+function drawHeatmap(){
   const trailStart = Math.max(0, currentFrame-TRAIL_LENGTH);
+  const imageData = ctx.createImageData(canvas.width, canvas.height);
+  const data = imageData.data;
+
   for(let f=trailStart; f<=currentFrame; f++){
     const pt = allFrames[f];
     if(!pt) continue;
-    const px = pt.x/100*canvas.width;
-    const py = canvas.height - pt.y/100*canvas.height;
+    const px = Math.floor(pt.x/100*canvas.width);
+    const py = Math.floor(canvas.height - pt.y/100*canvas.height);
+    const color = QUADRANT_COLORS[
+      (pt.x>=50 && pt.y>=50) ? "Q1" :
+      (pt.x<50 && pt.y>=50) ? "Q2" :
+      (pt.x<50 && pt.y<50) ? "Q3" :
+      "Q4"
+    ];
 
-    const alpha = HEAT_INTENSITY*(1 - (currentFrame-f)/TRAIL_LENGTH);
-    const gradient = ctx.createRadialGradient(px, py, 0, px, py, HEAT_RADIUS);
-    const color = getPointColor(pt.x, pt.y, alpha);
-    gradient.addColorStop(0, color);
-    gradient.addColorStop(1, "rgba(255,255,255,0)");
-
-    ctx.fillStyle = gradient;
-    ctx.fillRect(px-HEAT_RADIUS, py-HEAT_RADIUS, HEAT_RADIUS*2, HEAT_RADIUS*2);
+    for(let dx=-HEAT_RADIUS; dx<=HEAT_RADIUS; dx++){
+      for(let dy=-HEAT_RADIUS; dy<=HEAT_RADIUS; dy++){
+        const x = px+dx, y=py+dy;
+        if(x<0||y<0||x>=canvas.width||y>=canvas.height) continue;
+        const dist = Math.sqrt(dx*dx+dy*dy);
+        if(dist>HEAT_RADIUS) continue;
+        const idx = (y*canvas.width + x)*4;
+        const alpha = HEAT_INTENSITY*(1-dist/HEAT_RADIUS)*(1 - (currentFrame-f)/TRAIL_LENGTH);
+        data[idx] += color[0]*alpha;
+        data[idx+1] += color[1]*alpha;
+        data[idx+2] += color[2]*alpha;
+        data[idx+3] = 255;
+      }
+    }
   }
+
+  ctx.putImageData(imageData,0,0);
 }
 
-// Dessiner les points récents
+// Dessiner points récents plus gros
 function drawPoints(){
   const trailStart = Math.max(0, currentFrame-TRAIL_LENGTH);
   for(let f=trailStart; f<=currentFrame; f++){
@@ -122,7 +140,7 @@ function drawPoints(){
 function nextFrame(){
   if(!allFrames.length) return;
   drawGrid();
-  drawHeat();
+  drawHeatmap();
   drawPoints();
   currentFrame = (currentFrame+1)%allFrames.length;
   if(animating) animationId=requestAnimationFrame(nextFrame);
@@ -142,7 +160,7 @@ function updateSlider(){
   const slider = document.getElementById("timeline");
   currentFrame = parseInt(slider.value) || 0;
   drawGrid();
-  drawHeat();
+  drawHeatmap();
   drawPoints();
 }
 
@@ -167,11 +185,11 @@ async function init(){
     <strong>Légende :</strong><br>
     - Halo thermique : couleur et intensité selon zone<br>
     - Points récents : plus gros = plus récent<br>
-    - Grille fine + axes centraux pour repérer 4 zones
+    - Grille très fine + axes centraux pour repérer les 4 zones
   `;
 
   drawGrid();
-  drawHeat();
+  drawHeatmap();
   drawPoints();
 }
 
