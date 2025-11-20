@@ -1,30 +1,24 @@
 /* assets/js/events.js */
-
-const STABILITY_COLORS = { stable: "rgba(0,200,0,0.15)", alert: "rgba(255,165,0,0.15)", unstable: "rgba(255,0,0,0.15)" };
-const POINT_MIN_SIZE = 4;
-const POINT_MAX_SIZE = 10;
 const TRAIL_LENGTH = 60;
+const POINT_MIN_SIZE = 2;
+const POINT_MAX_SIZE = 8;
 
 let canvas, ctx;
 let allFrames = [];
-let displayedPoints = [];
 let currentFrame = 0;
 let animating = false;
 let animationId;
+let displayedPoints = [];
+let heatmapData = []; // pour le fond dynamique
 
-async function loadFrames(sec = 1800) {
+async function loadFramesFromHistory(sec = 1800) {
   try {
     const history = await window.IndoorAPI.fetchHistory(sec);
-    if (!history || !history.series) return [];
-
+    if (!history || !history.series || !history.series.length) return [];
     return history.series.map(entry => {
       const idx = entry.indices || {};
-      return {
-        x: idx.GAQI || 0,
-        y: idx.GEI || 0,
-        sri: idx.SRI || 0,
-        tci: idx.TCI || 0
-      };
+      const { GAQI = 0, GEI = 0, SRI = 0, TCI = 0 } = idx;
+      return { x: GAQI, y: GEI, sri: SRI, tci: TCI };
     });
   } catch (err) {
     console.error("Erreur historique :", err);
@@ -32,28 +26,46 @@ async function loadFrames(sec = 1800) {
   }
 }
 
-// Zones de fond 4 diagonales
-function drawBackground() {
-  const { width, height } = canvas;
-  ctx.save();
+function filterPoints(points, tciMin, tciMax, sriMin, sriMax) {
+  if (!points || !points.length) return [];
+  return points.filter(p => p.tci >= tciMin && p.tci <= tciMax && p.sri >= sriMin && p.sri <= sriMax);
+}
 
-  // Quart supérieur gauche : stable
-  ctx.fillStyle = STABILITY_COLORS.stable;
-  ctx.fillRect(0, 0, width/2, height/2);
+function getPointColor(p) {
+  const score = Math.sqrt((p.x / 100) ** 2 + (p.y / 100) ** 2 + (p.tci / 100) ** 2 + (p.sri / 100) ** 2);
+  if (score > 0.75) return "255,0,0";
+  else if (score > 0.5) return "255,165,0";
+  return "0,200,0";
+}
 
-  // Quart supérieur droit : alert
-  ctx.fillStyle = STABILITY_COLORS.alert;
-  ctx.fillRect(width/2, 0, width/2, height/2);
+function updateHeatmap() {
+  // On applique un léger fade sur le fond pour créer un effet fluide
+  ctx.fillStyle = "rgba(20,20,20,0.1)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Quart inférieur gauche : alert
-  ctx.fillStyle = STABILITY_COLORS.alert;
-  ctx.fillRect(0, height/2, width/2, height/2);
+  // chaque point laisse un halo diffus
+  for (let i = 0; i < displayedPoints.length; i++) {
+    const p = displayedPoints[i];
+    const ageFactor = (i + 1) / displayedPoints.length;
+    const color = getPointColor(p);
 
-  // Quart inférieur droit : unstable
-  ctx.fillStyle = STABILITY_COLORS.unstable;
-  ctx.fillRect(width/2, height/2, width/2, height/2);
+    const gradient = ctx.createRadialGradient(
+      (p.x / 100) * canvas.width,
+      canvas.height - (p.y / 100) * canvas.height,
+      0,
+      (p.x / 100) * canvas.width,
+      canvas.height - (p.y / 100) * canvas.height,
+      50 * ageFactor
+    );
+    gradient.addColorStop(0, `rgba(${color},${0.6 * ageFactor})`);
+    gradient.addColorStop(0.5, `rgba(${color},${0.2 * ageFactor})`);
+    gradient.addColorStop(1, `rgba(${color},0)`);
 
-  ctx.restore();
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc((p.x / 100) * canvas.width, canvas.height - (p.y / 100) * canvas.height, 50 * ageFactor, 0, 2 * Math.PI);
+    ctx.fill();
+  }
 }
 
 function drawPoints() {
@@ -61,31 +73,11 @@ function drawPoints() {
     const p = displayedPoints[i];
     const ageFactor = (i + 1) / displayedPoints.length;
     const size = POINT_MIN_SIZE + (POINT_MAX_SIZE - POINT_MIN_SIZE) * ageFactor;
-
-    // Couleur dynamique selon GAQI et GEI
-    const r = Math.min(255, Math.floor(p.x * 2.55));
-    const g = Math.min(255, Math.floor((100 - p.y) * 2.55));
-    const b = Math.floor((100 - (p.x + p.y)/2) * 2.55);
-    const color = `${r},${g},${b}`;
-
-    const haloRadius = size * 3;
-
-    const x = (p.x / 100) * canvas.width;
-    const y = canvas.height - (p.y / 100) * canvas.height;
-
-    const gradient = ctx.createRadialGradient(x, y, 0, x, y, haloRadius);
-    gradient.addColorStop(0, `rgba(${color},${0.5 * ageFactor})`);
-    gradient.addColorStop(0.5, `rgba(${color},${0.2 * ageFactor})`);
-    gradient.addColorStop(1, `rgba(${color},0)`);
-
-    ctx.fillStyle = gradient;
-    ctx.beginPath();
-    ctx.arc(x, y, haloRadius, 0, 2*Math.PI);
-    ctx.fill();
+    const color = getPointColor(p);
 
     ctx.fillStyle = `rgba(${color},1)`;
     ctx.beginPath();
-    ctx.arc(x, y, size, 0, 2*Math.PI);
+    ctx.arc((p.x / 100) * canvas.width, canvas.height - (p.y / 100) * canvas.height, size, 0, 2 * Math.PI);
     ctx.fill();
   }
 }
@@ -93,12 +85,19 @@ function drawPoints() {
 function nextFrame() {
   if (!allFrames.length) return;
 
-  displayedPoints.push(allFrames[currentFrame]);
-  if (displayedPoints.length > TRAIL_LENGTH) displayedPoints.shift();
+  const tciMin = parseFloat(document.getElementById("tciMin").value) || 0;
+  const tciMax = parseFloat(document.getElementById("tciMax").value) || 100;
+  const sriMin = parseFloat(document.getElementById("sriMin").value) || 0;
+  const sriMax = parseFloat(document.getElementById("sriMax").value) || 100;
 
-  drawBackground();
+  const framePoints = filterPoints([allFrames[currentFrame]], tciMin, tciMax, sriMin, sriMax);
+  displayedPoints.push(...framePoints);
+  if (displayedPoints.length > TRAIL_LENGTH) displayedPoints = displayedPoints.slice(-TRAIL_LENGTH);
+
+  updateHeatmap();
   drawPoints();
 
+  document.getElementById("timeline").value = currentFrame;
   currentFrame = (currentFrame + 1) % allFrames.length;
   if (animating) animationId = requestAnimationFrame(nextFrame);
 }
@@ -111,24 +110,9 @@ function toggleAnimation() {
   else cancelAnimationFrame(animationId);
 }
 
-function updateTimeline() {
-  const slider = document.getElementById("timeline");
-  currentFrame = parseInt(slider.value);
-  displayedPoints = allFrames.slice(Math.max(0, currentFrame - TRAIL_LENGTH), currentFrame + 1);
-  drawBackground();
-  drawPoints();
-}
-
-function initLegend() {
-  const legend = document.getElementById("stabilityLegend");
-  legend.innerHTML = `
-    <strong>Légende :</strong><br>
-    <span style="background:${STABILITY_COLORS.stable};padding:0 6px;border-radius:3px">Stable</span> 
-    <span style="background:${STABILITY_COLORS.alert};padding:0 6px;border-radius:3px">Alerte</span> 
-    <span style="background:${STABILITY_COLORS.unstable};padding:0 6px;border-radius:3px">Instable</span><br>
-    Halo coloré : intensité selon GAQI/GEI<br>
-    Points récents plus gros
-  `;
+function applyFilters() {
+  displayedPoints = [];
+  nextFrame();
 }
 
 async function init() {
@@ -136,18 +120,31 @@ async function init() {
   if (!canvas) return console.error("Canvas introuvable");
   ctx = canvas.getContext("2d");
 
-  allFrames = await loadFrames(1800);
-  if (!allFrames.length) return;
+  allFrames = await loadFramesFromHistory(1800);
+  if (!allFrames.length) return console.warn("Aucune frame chargée");
 
   const slider = document.getElementById("timeline");
   slider.max = allFrames.length - 1;
-  slider.addEventListener("input", updateTimeline);
+  slider.addEventListener("input", e => {
+    currentFrame = parseInt(e.target.value, 10);
+    displayedPoints = allFrames.slice(Math.max(0, currentFrame - TRAIL_LENGTH), currentFrame + 1);
+    updateHeatmap();
+    drawPoints();
+  });
 
   document.getElementById("playPauseBtn").addEventListener("click", toggleAnimation);
+  document.getElementById("applyFilters").addEventListener("click", applyFilters);
 
-  initLegend();
+  const legend = document.getElementById("stabilityLegend");
+  legend.innerHTML = `
+    <strong>Légende :</strong><br>
+    <span style="color:green;">● Stable</span> &nbsp;
+    <span style="color:orange;">● Alerte</span> &nbsp;
+    <span style="color:red;">● Instable</span><br>
+    Taille + couleur = récence / état<br>
+    Halo = flux thermique dynamique
+  `;
 
-  displayedPoints = [];
   nextFrame();
 }
 
