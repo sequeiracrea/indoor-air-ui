@@ -1,9 +1,4 @@
-/* assets/js/events.js */
-const STABILITY_COLORS = {
-  stable: "rgba(0,200,0,0.15)",
-  alert: "rgba(255,165,0,0.15)",
-  unstable: "rgba(255,0,0,0.15)"
-};
+const STABILITY_COLORS = { stable: "rgba(0,200,0,0.15)", alert: "rgba(255,165,0,0.15)", unstable: "rgba(255,0,0,0.15)" };
 const POINT_COLORS = { stable: "green", alert: "orange", unstable: "red" };
 
 let stabilityChart;
@@ -12,190 +7,178 @@ let currentFrame = 0;
 let animating = false;
 let animationId;
 
-// Paramètres
-const MICRO_POINTS = 30;  // Option micro-points (statique)
-const TRAIL = 60;         // Nombre de points dans le trail
-
-// --- Chargement des frames depuis l'historique ---
+// Chargement historique depuis API
 async function loadFramesFromHistory(sec = 1800) {
   try {
     const history = await window.IndoorAPI.fetchHistory(sec);
-    if (!history || !history.series || !history.series.length) return [];
+    if (!history?.series?.length) return [];
 
-    // Générer les frames sécurisées
     return history.series.map(entry => {
       const idx = entry.indices || {};
       const { GAQI = 0, GEI = 0, SRI = 0, TCI = 0 } = idx;
-      let score = Math.sqrt((GAQI/100)**2 + (GEI/100)**2 + (SRI/100)**2 + (TCI/100)**2);
-      let status = "stable";
-      if(score > 0.75) status = "unstable";
-      else if(score > 0.5) status = "alert";
-      return { x: GAQI, y: GEI, sri: SRI, tci: TCI, score, status };
+      return { x: GAQI, y: GEI, sri: SRI, tci: TCI };
     });
-  } catch(err) {
+  } catch (err) {
     console.error("Erreur historique :", err);
     return [];
   }
 }
 
-// --- Filtrage points selon TCI/SRI ---
+// Filtrer points selon TCI et SRI
 function filterPoints(points, tciMin, tciMax, sriMin, sriMax) {
-  if (!points || !points.length) return [];
   return points.filter(p => p.tci >= tciMin && p.tci <= tciMax && p.sri >= sriMin && p.sri <= sriMax);
 }
 
-// --- Fond type nucléide ---
-function drawBackground(ctx, chart){
+// Zones de fond type nucléide
+function drawBackground(ctx, chart) {
   const { left, right, top, bottom } = chart.chartArea;
-  const width = right-left;
-  const height = bottom-top;
+  const width = right - left;
+  const height = bottom - top;
 
   ctx.save();
   ctx.fillStyle = STABILITY_COLORS.stable;
-  ctx.fillRect(left, top, width*0.5, height*0.5);
+  ctx.fillRect(left, top, width * 0.5, height * 0.5);
   ctx.fillStyle = STABILITY_COLORS.alert;
-  ctx.fillRect(left+width*0.5, top, width*0.5, height*0.5);
+  ctx.fillRect(left + width * 0.5, top, width * 0.5, height * 0.5);
   ctx.fillStyle = STABILITY_COLORS.unstable;
-  ctx.fillRect(left, top+height*0.5, width, height*0.5);
+  ctx.fillRect(left, top + height * 0.5, width, height * 0.5);
   ctx.restore();
 }
 
-// --- Rendu chart ---
-function renderChart(points, trailPoints=[], microPoints=[]){
+// Render Chart avec trail dégradé et tailles
+function renderChart(points, trailLength = 60) {
   const ctx = document.getElementById("stabilityChart").getContext("2d");
 
-  if(stabilityChart) stabilityChart.destroy();
+  if (stabilityChart) stabilityChart.destroy();
+
+  const start = Math.max(0, points.length - trailLength);
+  const trailPoints = points.slice(start);
+
+  // Calcul des couleurs et tailles
+  const colors = [];
+  const sizes = [];
+  trailPoints.forEach((p, i) => {
+    const alpha = (i + 1) / trailPoints.length;
+    const score = Math.sqrt((p.x / 100) ** 2 + (p.y / 100) ** 2 + (p.tci / 100) ** 2 + (p.sri / 100) ** 2);
+    let baseColor = POINT_COLORS.stable;
+    if (score > 0.75) baseColor = POINT_COLORS.unstable;
+    else if (score > 0.5) baseColor = POINT_COLORS.alert;
+
+    // RGBA
+    if (baseColor === "green") colors.push(`rgba(0,200,0,${alpha})`);
+    else if (baseColor === "orange") colors.push(`rgba(255,165,0,${alpha})`);
+    else colors.push(`rgba(255,0,0,${alpha})`);
+
+    // Taille: plus récent = plus gros
+    sizes.push(4 + 6 * alpha); // min 4, max 10
+  });
 
   stabilityChart = new Chart(ctx, {
     type: "scatter",
     data: {
-      datasets:[
-        // Trail
-        {
-          label:"Trail",
-          data: trailPoints.map((p,i)=>({x:p.x, y:p.y, extra:p})),
-          pointBackgroundColor: trailPoints.map(p=>POINT_COLORS[p.status]),
-          pointRadius: trailPoints.map((p,i)=>6 + i/trailPoints.length*6),
-          pointHoverRadius: 12
-        },
-        // MicroPoints (optionnels)
-        {
-          label:"MicroPoints",
-          data: microPoints.map(p=>({x:p.x, y:p.y, extra:p})),
-          pointBackgroundColor: microPoints.map(p=>POINT_COLORS[p.status]),
-          pointRadius: 3,
-          pointHoverRadius: 8
-        }
-      ]
+      datasets: [{
+        label: "État environnemental",
+        data: trailPoints.map(p => ({ x: p.x, y: p.y, extra: p })),
+        pointBackgroundColor: colors,
+        pointRadius: sizes,
+        pointHoverRadius: 12
+      }]
     },
-    options:{
-      responsive:true,
-      maintainAspectRatio:false,
-      scales:{
-        x:{min:0,max:100,title:{display:true,text:"GAQI"}},
-        y:{min:0,max:100,title:{display:true,text:"GEI"}}
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: {
+        x: { min: 0, max: 100, title: { display: true, text: "GAQI" } },
+        y: { min: 0, max: 100, title: { display: true, text: "GEI" } }
       },
-      plugins:{
-        tooltip:{
-          callbacks:{
-            label:ctx=>{
+      plugins: {
+        tooltip: {
+          callbacks: {
+            label: ctx => {
               const p = ctx.raw.extra;
-              return `GAQI: ${p.x.toFixed(1)}, GEI: ${p.y.toFixed(1)}, SRI: ${p.sri.toFixed(1)}, TCI: ${p.tci.toFixed(1)}, État: ${p.status}`;
+              return `GAQI: ${p.x.toFixed(1)}, GEI: ${p.y.toFixed(1)}, SRI: ${p.sri.toFixed(1)}, TCI: ${p.tci.toFixed(1)}`;
             }
           }
         },
-        legend:{display:false}
+        legend: { display: false } // On ajoute la légende dynamique via DOM
       }
     },
-    plugins:[{
-      id:"backgroundPlugin",
-      beforeDraw: chart=>drawBackground(chart.ctx, chart)
+    plugins: [{
+      id: "backgroundPlugin",
+      beforeDraw: chart => drawBackground(chart.ctx, chart)
     }]
   });
+
+  // Mettre à jour légende dynamique
+  const legend = document.getElementById("stabilityLegend");
+  legend.innerHTML = `
+    <strong>Légende :</strong><br>
+    <span style="color:green">● Stable</span> &nbsp;
+    <span style="color:orange">● Alerte</span> &nbsp;
+    <span style="color:red">● Instable</span><br>
+    <span>Dégradé de taille / opacité → plus récent = plus visible</span>
+  `;
 }
 
-// --- Animation ---
-function nextFrame(){
-  if(!allFrames.length) return;
+// Animation
+function nextFrame() {
+  if (!allFrames.length) return;
 
   const tciMin = parseFloat(document.getElementById("tciMin").value) || 0;
   const tciMax = parseFloat(document.getElementById("tciMax").value) || 100;
   const sriMin = parseFloat(document.getElementById("sriMin").value) || 0;
   const sriMax = parseFloat(document.getElementById("sriMax").value) || 100;
 
-  // Construction du trail
-  let trailPoints = [];
-  for(let i=TRAIL-1;i>=0;i--){
-    let idx = (currentFrame - i + allFrames.length) % allFrames.length;
-    trailPoints.push(allFrames[idx]);
-  }
+  const framesToShow = allFrames.slice(0, currentFrame + 1);
+  const filtered = filterPoints(framesToShow, tciMin, tciMax, sriMin, sriMax);
 
-  // MicroPoints statiques (les N plus anciens)
-  let microPoints = [];
-  if(MICRO_POINTS>0){
-    for(let i=MICRO_POINTS;i>=0;i--){
-      let idx = (currentFrame - TRAIL - i + allFrames.length) % allFrames.length;
-      if(idx>=0 && idx<allFrames.length) microPoints.push(allFrames[idx]);
-    }
-  }
+  renderChart(filtered, 60);
 
-  const filteredTrail = filterPoints(trailPoints,tciMin,tciMax,sriMin,sriMax);
-  const filteredMicro = filterPoints(microPoints,tciMin,tciMax,sriMin,sriMax);
+  const slider = document.getElementById("timeSlider");
+  slider.value = currentFrame;
+  document.getElementById("timeLabel").textContent = `${currentFrame + 1} / ${allFrames.length}`;
 
-  renderChart([],filteredTrail,filteredMicro);
-
-  currentFrame = (currentFrame+1)%allFrames.length;
-  if(animating) animationId = requestAnimationFrame(nextFrame);
+  currentFrame = (currentFrame + 1) % allFrames.length;
+  if (animating) animationId = requestAnimationFrame(nextFrame);
 }
 
-// --- Play / Pause ---
-function toggleAnimation(){
+// Play / Pause
+function toggleAnimation() {
   animating = !animating;
   const btn = document.getElementById("playPauseBtn");
   btn.textContent = animating ? "Pause" : "Play";
-  if(animating) nextFrame();
+  if (animating) nextFrame();
   else cancelAnimationFrame(animationId);
 }
 
-// --- Application filtres manuels ---
-function applyFilters(){
-  currentFrame=0;
+// Slider manuel
+function onSliderChange(e) {
+  animating = false;
+  cancelAnimationFrame(animationId);
+  currentFrame = parseInt(e.target.value);
   nextFrame();
 }
 
-// --- Légende dynamique ---
-function updateLegend(){
-  const legendDiv = document.getElementById("stabilityLegend");
-  legendDiv.innerHTML = `
-    <strong>Légende :</strong><br>
-    <span style="display:inline-block;width:15px;height:15px;background-color:rgba(0,200,0,0.15);margin-right:5px;"></span> Zone stable<br>
-    <span style="display:inline-block;width:15px;height:15px;background-color:rgba(255,165,0,0.15);margin-right:5px;"></span> Zone alerte<br>
-    <span style="display:inline-block;width:15px;height:15px;background-color:rgba(255,0,0,0.15);margin-right:5px;"></span> Zone instable<br>
-    <span style="display:inline-block;width:12px;height:12px;background-color:green;border-radius:50%;margin-right:5px;"></span> Point récent stable<br>
-    <span style="display:inline-block;width:8px;height:8px;background-color:green;border-radius:50%;margin-right:5px;"></span> Point ancien stable<br>
-    <span style="display:inline-block;width:12px;height:12px;background-color:orange;border-radius:50%;margin-right:5px;"></span> Point récent alerte<br>
-    <span style="display:inline-block;width:8px;height:8px;background-color:orange;border-radius:50%;margin-right:5px;"></span> Point ancien alerte<br>
-    <span style="display:inline-block;width:12px;height:12px;background-color:red;border-radius:50%;margin-right:5px;"></span> Point récent instable<br>
-    <span style="display:inline-block;width:8px;height:8px;background-color:red;border-radius:50%;margin-right:5px;"></span> Point ancien instable<br>
-  `;
+// Appliquer filtre manuel
+function applyFilters() {
+  currentFrame = 0;
+  nextFrame();
 }
 
-// --- Initialisation ---
-async function init(){
+// Init
+async function init() {
   allFrames = await loadFramesFromHistory(1800);
-  if(!allFrames.length) return;
+  if (!allFrames.length) return;
 
-  // Ajouter boutons play/pause
-  const btn = document.createElement("button");
-  btn.id = "playPauseBtn";
-  btn.textContent = "Play";
-  btn.addEventListener("click",toggleAnimation);
-  document.getElementById("filters").appendChild(btn);
+  // Boutons Play / Pause
+  document.getElementById("playPauseBtn").addEventListener("click", toggleAnimation);
+  const slider = document.getElementById("timeSlider");
+  slider.max = allFrames.length - 1;
+  slider.addEventListener("input", onSliderChange);
 
-  document.getElementById("applyFilters").addEventListener("click",applyFilters);
+  document.getElementById("applyFilters").addEventListener("click", applyFilters);
 
-  updateLegend();
   nextFrame();
 }
 
-window.addEventListener("load",init);
+window.addEventListener("load", init);
