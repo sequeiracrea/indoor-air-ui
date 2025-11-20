@@ -1,15 +1,16 @@
 /* assets/js/events.js */
 
-// Couleurs des quadrants pour halo et trail
+// Couleurs des quadrants
 const QUADRANT_COLORS = {
-  Q1: [0, 255, 0],   // Vert
-  Q2: [0, 200, 255], // Bleu
-  Q3: [150, 0, 200], // Violet
-  Q4: [255, 50, 50]  // Rouge
+  Q1: [0, 255, 0],
+  Q2: [0, 200, 255],
+  Q3: [150, 0, 200],
+  Q4: [255, 50, 50]
 };
 
-const MICRO_POINT_COUNT = 30; // Points statiques
-const TRAIL_LENGTH = 60;      // Nombre de frames de trail
+const MICRO_POINT_COUNT = 30;
+const TRAIL_LENGTH = 60;
+const HEAT_INTENSITY = 0.08; // intensité du halo thermique
 
 let canvas, ctx;
 let allFrames = [];
@@ -18,35 +19,29 @@ let animating = false;
 let animationId;
 let microPoints = [];
 
-// Calcul couleur dégradée selon quadrant
+// Couleur dégradée selon quadrant et distance du centre
 function getPointColor(x, y) {
-  const cx = 50, cy = 50; // centre
+  const cx = 50, cy = 50;
   let base;
   if (x >= cx && y >= cy) base = QUADRANT_COLORS.Q1;
   else if (x < cx && y >= cy) base = QUADRANT_COLORS.Q2;
   else if (x < cx && y < cy) base = QUADRANT_COLORS.Q3;
   else base = QUADRANT_COLORS.Q4;
 
-  // Intensité selon distance du centre
-  const dx = Math.abs(x - cx) / 50; // 0..1
-  const dy = Math.abs(y - cy) / 50; // 0..1
+  const dx = Math.abs(x - cx)/50;
+  const dy = Math.abs(y - cy)/50;
   const intensity = Math.min(1, Math.sqrt(dx*dx + dy*dy));
-
   return `rgba(${Math.floor(base[0]*intensity)},${Math.floor(base[1]*intensity)},${Math.floor(base[2]*intensity)},0.6)`;
 }
 
-// Générer points micro statiques
 function generateMicroPoints() {
   microPoints = [];
   for(let i=0;i<MICRO_POINT_COUNT;i++){
-    microPoints.push({
-      x: Math.random()*100,
-      y: Math.random()*100
-    });
+    microPoints.push({x: Math.random()*100, y: Math.random()*100});
   }
 }
 
-// Charger historique depuis l’API
+// Charger historique
 async function loadFrames(sec=1800){
   try {
     const history = await window.IndoorAPI.fetchHistory(sec);
@@ -62,22 +57,16 @@ async function loadFrames(sec=1800){
   }
 }
 
-// Dessiner grille et axes
+// Dessiner grille fine + axes
 function drawGrid(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.strokeStyle = "#ccc";
-  ctx.lineWidth = 0.5;
-
-  // lignes verticales
+  ctx.strokeStyle="#ccc";
+  ctx.lineWidth=0.5;
   for(let i=0;i<=100;i+=10){
     ctx.beginPath();
     ctx.moveTo(i/100*canvas.width,0);
     ctx.lineTo(i/100*canvas.width,canvas.height);
     ctx.stroke();
-  }
-
-  // lignes horizontales
-  for(let i=0;i<=100;i+=10){
     ctx.beginPath();
     ctx.moveTo(0,i/100*canvas.height);
     ctx.lineTo(canvas.width,i/100*canvas.height);
@@ -85,8 +74,8 @@ function drawGrid(){
   }
 
   // axes centraux
-  ctx.strokeStyle = "#999";
-  ctx.lineWidth = 1.5;
+  ctx.strokeStyle="#999";
+  ctx.lineWidth=1.5;
   ctx.beginPath();
   ctx.moveTo(canvas.width/2,0);
   ctx.lineTo(canvas.width/2,canvas.height);
@@ -97,49 +86,68 @@ function drawGrid(){
   ctx.stroke();
 }
 
-// Dessiner points et trails
-function drawPoints(){
+// Dessiner le fond thermique
+function drawHeat(){
   const trailStart = Math.max(0, currentFrame-TRAIL_LENGTH);
   for(let f=trailStart; f<=currentFrame; f++){
     const pt = allFrames[f];
     if(!pt) continue;
-    const alpha = 0.3*(1 - (currentFrame-f)/TRAIL_LENGTH); // plus ancien = plus transparent
-    const color = getPointColor(pt.x, pt.y).replace("0.6",alpha.toFixed(2));
-
     const px = pt.x/100*canvas.width;
     const py = canvas.height - pt.y/100*canvas.height;
 
-    // Trail cercle
+    const alpha = HEAT_INTENSITY*(1 - (currentFrame-f)/TRAIL_LENGTH);
+    const gradient = ctx.createRadialGradient(px, py, 0, px, py, 40);
+    const color = getPointColor(pt.x, pt.y).replace("0.6", alpha.toFixed(2));
+    gradient.addColorStop(0, color);
+    gradient.addColorStop(1, "rgba(255,255,255,0)");
+
+    ctx.fillStyle = gradient;
+    ctx.fillRect(px-40, py-40, 80, 80);
+  }
+}
+
+// Dessiner points + micro points
+function drawPoints(){
+  drawHeat();
+
+  // Points récents
+  const trailStart = Math.max(0, currentFrame-TRAIL_LENGTH);
+  for(let f=trailStart; f<=currentFrame; f++){
+    const pt = allFrames[f];
+    if(!pt) continue;
+    const px = pt.x/100*canvas.width;
+    const py = canvas.height - pt.y/100*canvas.height;
+    const radius = 2 + 4*((f-trailStart+1)/TRAIL_LENGTH);
+
     ctx.beginPath();
-    ctx.fillStyle = color;
-    const radius = 4 + 2*((f - trailStart +1)/TRAIL_LENGTH); // récent = plus gros
+    ctx.fillStyle = getPointColor(pt.x, pt.y);
     ctx.arc(px, py, radius, 0, Math.PI*2);
     ctx.fill();
   }
 
-  // micro points statiques
+  // Micro points
   microPoints.forEach(mp=>{
     const px = mp.x/100*canvas.width;
     const py = canvas.height - mp.y/100*canvas.height;
     ctx.beginPath();
-    ctx.fillStyle = "rgba(100,100,100,0.3)";
-    ctx.arc(px,py,2,0,Math.PI*2);
+    ctx.fillStyle="rgba(100,100,100,0.3)";
+    ctx.arc(px, py, 2, 0, Math.PI*2);
     ctx.fill();
   });
 }
 
-// Prochaine frame
+// Frame suivante
 function nextFrame(){
   if(!allFrames.length) return;
   drawGrid();
   drawPoints();
-  currentFrame = (currentFrame + 1) % allFrames.length;
-  if(animating) animationId = requestAnimationFrame(nextFrame);
+  currentFrame = (currentFrame+1)%allFrames.length;
+  if(animating) animationId=requestAnimationFrame(nextFrame);
 }
 
-// Play / Pause
+// Play / pause
 function toggleAnimation(){
-  animating = !animating;
+  animating=!animating;
   const btn = document.getElementById("playPauseBtn");
   btn.textContent = animating ? "Pause":"Play";
   if(animating) nextFrame();
@@ -160,36 +168,29 @@ async function init(){
   if(!canvas) return console.error("Canvas introuvable !");
   ctx = canvas.getContext("2d");
 
-  // micro points
   generateMicroPoints();
 
-  // charger historique
   allFrames = await loadFrames(1800);
   if(!allFrames.length) return;
 
-  // slider max
   const slider = document.getElementById("timeline");
   slider.max = allFrames.length-1;
-  slider.addEventListener("input",updateSlider);
+  slider.addEventListener("input", updateSlider);
 
-  // bouton play/pause
   const btn = document.getElementById("playPauseBtn");
-  btn.addEventListener("click",toggleAnimation);
+  btn.addEventListener("click", toggleAnimation);
 
-  // légende
   const legend = document.getElementById("stabilityLegend");
-  legend.innerHTML = `
+  legend.innerHTML=`
     <strong>Légende :</strong><br>
-    - Quadrants verts / bleus / violets / rouges selon zone<br>
-    - Halo : couleur évolutive selon zone et position<br>
-    - Points récents plus gros, plus intenses<br>
+    - Points récents : gros et colorés selon quadrant<br>
+    - Halo thermique : couleur selon quadrant, intensité du trail<br>
     - Micro points gris : statiques<br>
-    - Axe central pour repère des quadrants
+    - Grille et axes centraux pour repère des 4 zones
   `;
 
-  // affichage initial
   drawGrid();
   drawPoints();
 }
 
-window.addEventListener("load",init);
+window.addEventListener("load", init);
