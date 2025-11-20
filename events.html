@@ -50,17 +50,20 @@
       margin: auto;
     }
 
-    .chart-container {
-        position: relative;
-        width: 100%;
-        height: 400px;
-        min-height: 400px;
-        overflow: visible;
-    }
-    
-    #stabilityChart {
-        display: block;
-    }
+.chart-container {
+  position: relative;
+  width: 100%;
+  height: 500px;
+}
+
+#mainCanvas, #stabilityChart {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
 
     canvas {
       background-color: white;
@@ -136,9 +139,14 @@
         <button id="applyFilters">Appliquer</button>
       </div>
 
-      <div class="chart-container">
-          <canvas id="stabilityChart"></canvas>
-      </div>
+<div class="chart-container">
+    <!-- Canvas animation haute performance -->
+    <canvas id="mainCanvas"></canvas>
+
+    <!-- Canvas Chart.js (stabilité multipoints) -->
+    <canvas id="stabilityChart"></canvas>
+</div>
+
       
       <div id="animationControls">
           <button id="playPauseBtn">Play</button>
