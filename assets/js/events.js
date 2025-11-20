@@ -1,16 +1,8 @@
-/* assets/js/events.js - Heatmap améliorée avec grille fine */
+/* assets/js/events.js - Heatmap améliorée style “Rainbow / Thermique” */
 
-// Couleurs des quadrants
-const QUADRANT_COLORS = {
-  Q1: [0, 255, 0],
-  Q2: [0, 200, 255],
-  Q3: [150, 0, 200],
-  Q4: [255, 50, 50]
-};
-
-const TRAIL_LENGTH = 60;       // Nombre de frames pour le halo
-const HEAT_RADIUS = 40;        // Rayon du halo
-const HEAT_INTENSITY = 0.08;   // Intensité du halo
+const TRAIL_LENGTH = 60;       
+const HEAT_RADIUS = 40;        
+const HEAT_INTENSITY = 0.08;   
 
 let canvas, ctx;
 let allFrames = [];
@@ -18,19 +10,11 @@ let currentFrame = 0;
 let animating = false;
 let animationId;
 
-// Retourne couleur RGBA selon quadrant
-function getPointColor(x, y, alpha=0.6) {
-  const cx = 50, cy = 50;
-  let base;
-  if (x >= cx && y >= cy) base = QUADRANT_COLORS.Q1;
-  else if (x < cx && y >= cy) base = QUADRANT_COLORS.Q2;
-  else if (x < cx && y < cy) base = QUADRANT_COLORS.Q3;
-  else base = QUADRANT_COLORS.Q4;
-
-  const dx = Math.abs(x - cx)/50;
-  const dy = Math.abs(y - cy)/50;
-  const intensity = Math.min(1, Math.sqrt(dx*dx + dy*dy));
-  return `rgba(${Math.floor(base[0]*intensity)},${Math.floor(base[1]*intensity)},${Math.floor(base[2]*intensity)},${alpha})`;
+// Retourne couleur dégradée arc-en-ciel selon x,y (0-100)
+function getRainbowColor(x, y, alpha=0.7) {
+  // On combine x et y pour créer un angle
+  const hue = (x + y) % 100 * 3.6; // 0-360°
+  return `hsla(${hue}, 80%, 50%, ${alpha})`;
 }
 
 // Charger l’historique
@@ -56,7 +40,7 @@ function drawGrid(){
   ctx.strokeStyle="#ddd";
   ctx.lineWidth=0.2;
 
-  for(let i=0;i<=100;i+=2){  // grille très fine
+  for(let i=0;i<=100;i+=2){  
     ctx.beginPath();
     ctx.moveTo(i/100*canvas.width,0);
     ctx.lineTo(i/100*canvas.width,canvas.height);
@@ -68,7 +52,6 @@ function drawGrid(){
     ctx.stroke();
   }
 
-  // axes centraux plus visibles
   ctx.strokeStyle="#999";
   ctx.lineWidth=1;
   ctx.beginPath();
@@ -93,30 +76,44 @@ function drawHeatmap(){
     if(!pt) continue;
     const px = Math.floor(pt.x/100*canvas.width);
     const py = Math.floor(canvas.height - pt.y/100*canvas.height);
-    const color = QUADRANT_COLORS[
-      (pt.x>=50 && pt.y>=50) ? "Q1" :
-      (pt.x<50 && pt.y>=50) ? "Q2" :
-      (pt.x<50 && pt.y<50) ? "Q3" :
-      "Q4"
-    ];
+
+    // Couleur selon position
+    const color = getRainbowColor(pt.x, pt.y, 1.0);
+    const [h,s,l,a] = color.match(/\d+\.?\d*/g).map(Number); // hsla -> array
+    const rgb = hslToRgb(h,s/100,l/100);
 
     for(let dx=-HEAT_RADIUS; dx<=HEAT_RADIUS; dx++){
       for(let dy=-HEAT_RADIUS; dy<=HEAT_RADIUS; dy++){
-        const x = px+dx, y=py+dy;
+        const x = px+dx, y = py+dy;
         if(x<0||y<0||x>=canvas.width||y>=canvas.height) continue;
         const dist = Math.sqrt(dx*dx+dy*dy);
         if(dist>HEAT_RADIUS) continue;
         const idx = (y*canvas.width + x)*4;
         const alpha = HEAT_INTENSITY*(1-dist/HEAT_RADIUS)*(1 - (currentFrame-f)/TRAIL_LENGTH);
-        data[idx] += color[0]*alpha;
-        data[idx+1] += color[1]*alpha;
-        data[idx+2] += color[2]*alpha;
+        data[idx] += rgb[0]*alpha;
+        data[idx+1] += rgb[1]*alpha;
+        data[idx+2] += rgb[2]*alpha;
         data[idx+3] = 255;
       }
     }
   }
 
   ctx.putImageData(imageData,0,0);
+}
+
+// Convert HSLA en RGB [0-255]
+function hslToRgb(h, s, l){
+  const c = (1 - Math.abs(2*l-1))*s;
+  const x = c*(1-Math.abs((h/60)%2-1));
+  const m = l-c/2;
+  let r=0,g=0,b=0;
+  if(h<60){ r=c; g=x; b=0; }
+  else if(h<120){ r=x; g=c; b=0; }
+  else if(h<180){ r=0; g=c; b=x; }
+  else if(h<240){ r=0; g=x; b=c; }
+  else if(h<300){ r=x; g=0; b=c; }
+  else{ r=c; g=0; b=x; }
+  return [Math.round((r+m)*255), Math.round((g+m)*255), Math.round((b+m)*255)];
 }
 
 // Dessiner points récents plus gros
@@ -127,16 +124,15 @@ function drawPoints(){
     if(!pt) continue;
     const px = pt.x/100*canvas.width;
     const py = canvas.height - pt.y/100*canvas.height;
-    const radius = 2 + 4*((f-trailStart+1)/TRAIL_LENGTH); // plus récent = plus gros
+    const radius = 2 + 4*((f-trailStart+1)/TRAIL_LENGTH);
 
     ctx.beginPath();
-    ctx.fillStyle = getPointColor(pt.x, pt.y);
+    ctx.fillStyle = getRainbowColor(pt.x, pt.y, 0.8);
     ctx.arc(px, py, radius, 0, Math.PI*2);
     ctx.fill();
   }
 }
 
-// Frame suivante
 function nextFrame(){
   if(!allFrames.length) return;
   drawGrid();
@@ -146,7 +142,6 @@ function nextFrame(){
   if(animating) animationId=requestAnimationFrame(nextFrame);
 }
 
-// Play / Pause
 function toggleAnimation(){
   animating=!animating;
   const btn = document.getElementById("playPauseBtn");
@@ -155,7 +150,6 @@ function toggleAnimation(){
   else cancelAnimationFrame(animationId);
 }
 
-// Slider
 function updateSlider(){
   const slider = document.getElementById("timeline");
   currentFrame = parseInt(slider.value) || 0;
@@ -164,7 +158,6 @@ function updateSlider(){
   drawPoints();
 }
 
-// Initialisation
 async function init(){
   canvas = document.getElementById("stabilityChart");
   if(!canvas) return console.error("Canvas introuvable !");
@@ -183,9 +176,9 @@ async function init(){
   const legend = document.getElementById("stabilityLegend");
   legend.innerHTML=`
     <strong>Légende :</strong><br>
-    - Halo thermique : couleur et intensité selon zone<br>
-    - Points récents : plus gros = plus récent<br>
-    - Grille très fine + axes centraux pour repérer les 4 zones
+    - Halo + points : couleur selon position (rainbow)<br>
+    - Plus récent = plus gros<br>
+    - Grille très fine + axes centraux pour repérer 4 zones
   `;
 
   drawGrid();
