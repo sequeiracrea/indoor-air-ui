@@ -1,201 +1,229 @@
-/* assets/js/events.js */
-const STABILITY_COLORS = {
-  stable: "rgba(0,200,0,0.15)",
-  alert: "rgba(255,165,0,0.15)",
-  unstable: "rgba(255,0,0,0.15)"
-};
-const POINT_COLORS = { stable: "green", alert: "orange", unstable: "red" };
+/* assets/js/events.js — VERSION ULTRA STABLE (sans destroy) */
 
-let stabilityChart;
-let allFrames = [];
-let currentFrame = 0;
-let animating = false;
-let animationId;
+const TRAIL_LENGTH = 60;  // nombre d’anciennes positions
+const MICRO_POINTS = 30;  // "micro jitter" autour du point principal
 
-// Paramètres
-const MICRO_POINTS = 30;  // Option micro-points (statique)
-const TRAIL = 60;         // Nombre de points dans le trail
+let stabilityChart = null;
+let frames = [];       // Toutes les frames du /history
+let current = 0;
+let playing = false;
+let rafId = null;
 
-// --- Chargement des frames depuis l'historique ---
-async function loadFramesFromHistory(sec = 1800) {
-  try {
-    const history = await window.IndoorAPI.fetchHistory(sec);
-    if (!history || !history.series || !history.series.length) return [];
+/* ----------------------------------------------------------
+   1. RÉCUP HISTORIQUE
+---------------------------------------------------------- */
+async function loadHistory(sec = 1800) {
+    try {
+        const history = await IndoorAPI.fetchHistory(sec);
+        if (!history || !history.series) return [];
 
-    // Générer les frames sécurisées
-    return history.series.map(entry => {
-      const idx = entry.indices || {};
-      const { GAQI = 0, GEI = 0, SRI = 0, TCI = 0 } = idx;
-      let score = Math.sqrt((GAQI/100)**2 + (GEI/100)**2 + (SRI/100)**2 + (TCI/100)**2);
-      let status = "stable";
-      if(score > 0.75) status = "unstable";
-      else if(score > 0.5) status = "alert";
-      return { x: GAQI, y: GEI, sri: SRI, tci: TCI, score, status };
-    });
-  } catch(err) {
-    console.error("Erreur historique :", err);
-    return [];
-  }
-}
-
-// --- Filtrage points selon TCI/SRI ---
-function filterPoints(points, tciMin, tciMax, sriMin, sriMax) {
-  if (!points || !points.length) return [];
-  return points.filter(p => p.tci >= tciMin && p.tci <= tciMax && p.sri >= sriMin && p.sri <= sriMax);
-}
-
-// --- Fond type nucléide ---
-function drawBackground(ctx, chart){
-  const { left, right, top, bottom } = chart.chartArea;
-  const width = right-left;
-  const height = bottom-top;
-
-  ctx.save();
-  ctx.fillStyle = STABILITY_COLORS.stable;
-  ctx.fillRect(left, top, width*0.5, height*0.5);
-  ctx.fillStyle = STABILITY_COLORS.alert;
-  ctx.fillRect(left+width*0.5, top, width*0.5, height*0.5);
-  ctx.fillStyle = STABILITY_COLORS.unstable;
-  ctx.fillRect(left, top+height*0.5, width, height*0.5);
-  ctx.restore();
-}
-
-// --- Rendu chart ---
-function renderChart(points, trailPoints=[], microPoints=[]){
-  const ctx = document.getElementById("stabilityChart").getContext("2d");
-
-  if(stabilityChart) stabilityChart.destroy();
-
-  stabilityChart = new Chart(ctx, {
-    type: "scatter",
-    data: {
-      datasets:[
-        // Trail
-        {
-          label:"Trail",
-          data: trailPoints.map((p,i)=>({x:p.x, y:p.y, extra:p})),
-          pointBackgroundColor: trailPoints.map(p=>POINT_COLORS[p.status]),
-          pointRadius: trailPoints.map((p,i)=>6 + i/trailPoints.length*6),
-          pointHoverRadius: 12
-        },
-        // MicroPoints (optionnels)
-        {
-          label:"MicroPoints",
-          data: microPoints.map(p=>({x:p.x, y:p.y, extra:p})),
-          pointBackgroundColor: microPoints.map(p=>POINT_COLORS[p.status]),
-          pointRadius: 3,
-          pointHoverRadius: 8
-        }
-      ]
-    },
-    options:{
-      responsive:true,
-      maintainAspectRatio:false,
-      scales:{
-        x:{min:0,max:100,title:{display:true,text:"GAQI"}},
-        y:{min:0,max:100,title:{display:true,text:"GEI"}}
-      },
-      plugins:{
-        tooltip:{
-          callbacks:{
-            label:ctx=>{
-              const p = ctx.raw.extra;
-              return `GAQI: ${p.x.toFixed(1)}, GEI: ${p.y.toFixed(1)}, SRI: ${p.sri.toFixed(1)}, TCI: ${p.tci.toFixed(1)}, État: ${p.status}`;
-            }
-          }
-        },
-        legend:{display:false}
-      }
-    },
-    plugins:[{
-      id:"backgroundPlugin",
-      beforeDraw: chart=>drawBackground(chart.ctx, chart)
-    }]
-  });
-}
-
-// --- Animation ---
-function nextFrame(){
-  if(!allFrames.length) return;
-
-  const tciMin = parseFloat(document.getElementById("tciMin").value) || 0;
-  const tciMax = parseFloat(document.getElementById("tciMax").value) || 100;
-  const sriMin = parseFloat(document.getElementById("sriMin").value) || 0;
-  const sriMax = parseFloat(document.getElementById("sriMax").value) || 100;
-
-  // Construction du trail
-  let trailPoints = [];
-  for(let i=TRAIL-1;i>=0;i--){
-    let idx = (currentFrame - i + allFrames.length) % allFrames.length;
-    trailPoints.push(allFrames[idx]);
-  }
-
-  // MicroPoints statiques (les N plus anciens)
-  let microPoints = [];
-  if(MICRO_POINTS>0){
-    for(let i=MICRO_POINTS;i>=0;i--){
-      let idx = (currentFrame - TRAIL - i + allFrames.length) % allFrames.length;
-      if(idx>=0 && idx<allFrames.length) microPoints.push(allFrames[idx]);
+        return history.series.map(e => {
+            const i = e.indices || {};
+            return {
+                g: i.GAQI ?? 0,
+                e: i.GEI ?? 0,
+                s: i.SRI ?? 0,
+                t: i.TCI ?? 0
+            };
+        });
+    } catch (err) {
+        console.error("Erreur history:", err);
+        return [];
     }
-  }
-
-  const filteredTrail = filterPoints(trailPoints,tciMin,tciMax,sriMin,sriMax);
-  const filteredMicro = filterPoints(microPoints,tciMin,tciMax,sriMin,sriMax);
-
-  renderChart([],filteredTrail,filteredMicro);
-
-  currentFrame = (currentFrame+1)%allFrames.length;
-  if(animating) animationId = requestAnimationFrame(nextFrame);
 }
 
-// --- Play / Pause ---
-function toggleAnimation(){
-  animating = !animating;
-  const btn = document.getElementById("playPauseBtn");
-  btn.textContent = animating ? "Pause" : "Play";
-  if(animating) nextFrame();
-  else cancelAnimationFrame(animationId);
+/* ----------------------------------------------------------
+   2. CALCUL TRAIL + MICRO-POINTS
+---------------------------------------------------------- */
+function buildTrail(index) {
+    const trail = [];
+
+    for (let i = 0; i < TRAIL_LENGTH; i++) {
+        const f = frames[index - i];
+        if (!f) break;
+
+        trail.push({
+            x: f.g,
+            y: f.e,
+            s: f.s,
+            t: f.t,
+            size: 6 + (TRAIL_LENGTH - i) * 0.3   // plus récent = plus gros
+        });
+    }
+    return trail;
 }
 
-// --- Application filtres manuels ---
-function applyFilters(){
-  currentFrame=0;
-  nextFrame();
+function makeMicroPoints(basePoint) {
+    const pts = [];
+    for (let i = 0; i < MICRO_POINTS; i++) {
+        pts.push({
+            x: basePoint.x + (Math.random() - 0.5) * 1.5,
+            y: basePoint.y + (Math.random() - 0.5) * 1.5,
+            size: 2,
+            s: basePoint.s,
+            t: basePoint.t
+        });
+    }
+    return pts;
 }
 
-// --- Légende dynamique ---
-function updateLegend(){
-  const legendDiv = document.getElementById("stabilityLegend");
-  legendDiv.innerHTML = `
-    <strong>Légende :</strong><br>
-    <span style="display:inline-block;width:15px;height:15px;background-color:rgba(0,200,0,0.15);margin-right:5px;"></span> Zone stable<br>
-    <span style="display:inline-block;width:15px;height:15px;background-color:rgba(255,165,0,0.15);margin-right:5px;"></span> Zone alerte<br>
-    <span style="display:inline-block;width:15px;height:15px;background-color:rgba(255,0,0,0.15);margin-right:5px;"></span> Zone instable<br>
-    <span style="display:inline-block;width:12px;height:12px;background-color:green;border-radius:50%;margin-right:5px;"></span> Point récent stable<br>
-    <span style="display:inline-block;width:8px;height:8px;background-color:green;border-radius:50%;margin-right:5px;"></span> Point ancien stable<br>
-    <span style="display:inline-block;width:12px;height:12px;background-color:orange;border-radius:50%;margin-right:5px;"></span> Point récent alerte<br>
-    <span style="display:inline-block;width:8px;height:8px;background-color:orange;border-radius:50%;margin-right:5px;"></span> Point ancien alerte<br>
-    <span style="display:inline-block;width:12px;height:12px;background-color:red;border-radius:50%;margin-right:5px;"></span> Point récent instable<br>
-    <span style="display:inline-block;width:8px;height:8px;background-color:red;border-radius:50%;margin-right:5px;"></span> Point ancien instable<br>
-  `;
+/* ----------------------------------------------------------
+   3. COULEUR DYNAMIQUE
+---------------------------------------------------------- */
+function colorForPoint(p) {
+    const score = Math.sqrt(
+        (p.x / 100) ** 2 +
+        (p.y / 100) ** 2 +
+        (p.s / 100) ** 2 +
+        (p.t / 100) ** 2
+    );
+    if (score > 0.75) return "red";
+    if (score > 0.5) return "orange";
+    return "green";
 }
 
-// --- Initialisation ---
-async function init(){
-  allFrames = await loadFramesFromHistory(1800);
-  if(!allFrames.length) return;
+/* ----------------------------------------------------------
+   4. INITIALISATION CHART (UNE SEULE FOIS)
+---------------------------------------------------------- */
+function initChart() {
+    const ctx = document.getElementById("stabilityChart");
 
-  // Ajouter boutons play/pause
-  const btn = document.createElement("button");
-  btn.id = "playPauseBtn";
-  btn.textContent = "Play";
-  btn.addEventListener("click",toggleAnimation);
-  document.getElementById("filters").appendChild(btn);
+    stabilityChart = new Chart(ctx, {
+        type: "scatter",
+        data: {
+            datasets: [
+                {
+                    label: "Trail",
+                    data: [],
+                    pointRadius: ctx => ctx.raw.size,
+                    pointBackgroundColor: ctx => colorForPoint(ctx.raw),
+                },
+                {
+                    label: "Micro",
+                    data: [],
+                    pointRadius: ctx => ctx.raw.size,
+                    pointBackgroundColor: ctx => colorForPoint(ctx.raw),
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                x: { min: 0, max: 100, title: { text: "GAQI", display: true } },
+                y: { min: 0, max: 100, title: { text: "GEI", display: true } }
+            },
+            plugins: {
+                legend: {
+                    labels: {
+                        generateLabels(chart) {
+                            return [
+                                { text: "Stable", fillStyle: "green" },
+                                { text: "Alerte", fillStyle: "orange" },
+                                { text: "Instable", fillStyle: "red" }
+                            ];
+                        }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label(ctx) {
+                            const p = ctx.raw;
+                            return `GAQI: ${p.x.toFixed(1)}, GEI: ${p.y.toFixed(1)}, SRI: ${p.s.toFixed(1)}, TCI: ${p.t.toFixed(1)}`;
+                        }
+                    }
+                }
+            }
+        },
+        plugins: [
+            {
+                id: "background",
+                beforeDraw(chart, args, opts) {
+                    const { ctx, chartArea: a } = chart;
+                    ctx.save();
 
-  document.getElementById("applyFilters").addEventListener("click",applyFilters);
+                    // vert clair
+                    ctx.fillStyle = "rgba(0,200,0,0.15)";
+                    ctx.fillRect(a.left, a.top, a.width * 0.5, a.height * 0.5);
 
-  updateLegend();
-  nextFrame();
+                    // orange clair
+                    ctx.fillStyle = "rgba(255,165,0,0.15)";
+                    ctx.fillRect(a.left + a.width * 0.5, a.top, a.width * 0.5, a.height * 0.5);
+
+                    // rouge clair
+                    ctx.fillStyle = "rgba(255,0,0,0.15)";
+                    ctx.fillRect(a.left, a.top + a.height * 0.5, a.width, a.height * 0.5);
+
+                    ctx.restore();
+                }
+            }
+        ]
+    });
 }
 
-window.addEventListener("load",init);
+/* ----------------------------------------------------------
+   5. MISE À JOUR (SANS DESTROY)
+---------------------------------------------------------- */
+function updateChart(index) {
+    const f = frames[index];
+    if (!f) return;
+
+    const base = { x: f.g, y: f.e, s: f.s, t: f.t };
+
+    const trail = buildTrail(index);
+    const micros = makeMicroPoints(base);
+
+    stabilityChart.data.datasets[0].data = trail;
+    stabilityChart.data.datasets[1].data = micros;
+
+    stabilityChart.update("none");
+}
+
+/* ----------------------------------------------------------
+   6. ANIMATION
+---------------------------------------------------------- */
+function loop() {
+    if (!playing) return;
+
+    current = (current + 1) % frames.length;
+    updateChart(current);
+
+    rafId = requestAnimationFrame(loop);
+}
+
+function togglePlay() {
+    playing = !playing;
+    document.getElementById("playPauseBtn").textContent = playing ? "Pause" : "Play";
+
+    if (playing) loop();
+    else cancelAnimationFrame(rafId);
+}
+
+function onSlider(e) {
+    playing = false;
+    document.getElementById("playPauseBtn").textContent = "Play";
+
+    current = Number(e.target.value);
+    updateChart(current);
+}
+
+/* ----------------------------------------------------------
+   7. INIT GÉNÉRAL
+---------------------------------------------------------- */
+async function init() {
+    frames = await loadHistory(1800);
+    if (!frames.length) {
+        console.warn("Aucune frame reçue !");
+        return;
+    }
+
+    initChart();
+
+    document.getElementById("timeline").max = frames.length - 1;
+    document.getElementById("playPauseBtn").onclick = togglePlay;
+    document.getElementById("timeline").oninput = onSlider;
+
+    updateChart(0);
+}
+
+window.addEventListener("load", init);
