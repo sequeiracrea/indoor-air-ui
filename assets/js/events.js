@@ -32,40 +32,33 @@ function filterPoints(points, tciMin, tciMax, sriMin, sriMax) {
 
 function getPointColor(p) {
   const score = Math.sqrt((p.x / 100) ** 2 + (p.y / 100) ** 2 + (p.tci / 100) ** 2 + (p.sri / 100) ** 2);
-  if (score > 0.75) return "255,0,0";       // rouge instable
-  else if (score > 0.5) return "255,165,0"; // orange alerte
-  return "0,200,0";                           // vert stable
+  if (score > 0.75) return "255,0,0";
+  else if (score > 0.5) return "255,165,0";
+  return "0,200,0";
 }
 
-function drawThermalBackground() {
-  const w = canvas.width;
-  const h = canvas.height;
-  const grd = ctx.createLinearGradient(0, 0, w, h);
-  grd.addColorStop(0, "#0040ff"); // bleu froid
-  grd.addColorStop(0.5, "#00ff00"); // vert
-  grd.addColorStop(1, "#ff0000"); // rouge chaud
-  ctx.fillStyle = grd;
-  ctx.fillRect(0, 0, w, h);
-}
+// Dessin du fond interactif (carte thermique)
+function drawHeatmapBackground() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  
+  // Fond noir léger
+  ctx.fillStyle = "rgba(20,20,20,0.2)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-function drawPoints() {
-  const w = canvas.width;
-  const h = canvas.height;
-
+  // Pour chaque point affiché, créer un halo coloré diffus
   for (let i = 0; i < displayedPoints.length; i++) {
     const p = displayedPoints[i];
-    const ageFactor = (i + 1) / displayedPoints.length; // ancien = petit & transparent
-    const size = POINT_MIN_SIZE + (POINT_MAX_SIZE - POINT_MIN_SIZE) * ageFactor;
+    const ageFactor = (i + 1) / displayedPoints.length;
+    const size = POINT_MIN_SIZE + (POINT_MAX_SIZE - POINT_MIN_SIZE) * ageFactor * 3; // plus large pour halo
     const color = getPointColor(p);
-
-    // halo néon
+    
     const gradient = ctx.createRadialGradient(
-      (p.x / 100) * w,
-      h - (p.y / 100) * h,
+      (p.x / 100) * canvas.width,
+      canvas.height - (p.y / 100) * canvas.height,
       0,
-      (p.x / 100) * w,
-      h - (p.y / 100) * h,
-      size * 3
+      (p.x / 100) * canvas.width,
+      canvas.height - (p.y / 100) * canvas.height,
+      size * 10
     );
     gradient.addColorStop(0, `rgba(${color},${0.6 + 0.4 * ageFactor})`);
     gradient.addColorStop(0.2, `rgba(${color},${0.4 * ageFactor})`);
@@ -74,7 +67,21 @@ function drawPoints() {
 
     ctx.fillStyle = gradient;
     ctx.beginPath();
-    ctx.arc((p.x / 100) * w, h - (p.y / 100) * h, size, 0, 2 * Math.PI);
+    ctx.arc((p.x / 100) * canvas.width, canvas.height - (p.y / 100) * canvas.height, size * 10, 0, 2 * Math.PI);
+    ctx.fill();
+  }
+}
+
+function drawPoints() {
+  for (let i = 0; i < displayedPoints.length; i++) {
+    const p = displayedPoints[i];
+    const ageFactor = (i + 1) / displayedPoints.length;
+    const size = POINT_MIN_SIZE + (POINT_MAX_SIZE - POINT_MIN_SIZE) * ageFactor;
+    const color = getPointColor(p);
+    
+    ctx.fillStyle = `rgba(${color},1)`;
+    ctx.beginPath();
+    ctx.arc((p.x / 100) * canvas.width, canvas.height - (p.y / 100) * canvas.height, size, 0, 2 * Math.PI);
     ctx.fill();
   }
 }
@@ -91,8 +98,7 @@ function nextFrame() {
   displayedPoints.push(...framePoints);
   if (displayedPoints.length > TRAIL_LENGTH) displayedPoints = displayedPoints.slice(-TRAIL_LENGTH);
 
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  drawThermalBackground();
+  drawHeatmapBackground();
   drawPoints();
 
   document.getElementById("timeline").value = currentFrame;
@@ -121,30 +127,27 @@ async function init() {
   allFrames = await loadFramesFromHistory(1800);
   if (!allFrames.length) return console.warn("Aucune frame chargée");
 
-  // timeline
   const slider = document.getElementById("timeline");
   slider.max = allFrames.length - 1;
   slider.addEventListener("input", e => {
     currentFrame = parseInt(e.target.value, 10);
     displayedPoints = allFrames.slice(Math.max(0, currentFrame - TRAIL_LENGTH), currentFrame + 1);
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawThermalBackground();
+    drawHeatmapBackground();
     drawPoints();
   });
 
-  // play/pause
   document.getElementById("playPauseBtn").addEventListener("click", toggleAnimation);
   document.getElementById("applyFilters").addEventListener("click", applyFilters);
 
-  // légende
   const legend = document.getElementById("stabilityLegend");
   legend.innerHTML = `
     <strong>Légende :</strong><br>
     <span style="color:green;">● Stable</span> &nbsp;
     <span style="color:orange;">● Alerte</span> &nbsp;
     <span style="color:red;">● Instable</span><br>
-    Fond : bleu→vert→rouge (froid → chaud)<br>
-    Points récents plus gros, halo néon
+    Taille + couleur = récence / état<br>
+    Halo = influence thermique<br>
+    Fond = carte thermique dynamique
   `;
 
   nextFrame();
