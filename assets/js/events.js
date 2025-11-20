@@ -4,6 +4,7 @@ let animating = false;
 let animationId;
 let displayedPoints = [];
 const TRAIL_LENGTH = 60;
+const MICRO_POINTS = 30;
 
 const canvas = document.getElementById("stabilityChart");
 const ctx = canvas.getContext("2d");
@@ -51,18 +52,15 @@ function drawBackground(){
   const w = canvas.width;
   const h = canvas.height;
 
-  // moyenne du trail pour influencer le fond
   const avgScore = computeAverageScore(displayedPoints);
   const grad = ctx.createLinearGradient(0,h,w,0);
-
-  grad.addColorStop(0, `rgba(0,${150*(1-avgScore)},255,0.2)`); // bleu/vert selon score
-  grad.addColorStop(0.5, `rgba(255,${150*(1-avgScore)},0,0.15)`); // jaune/orange
-  grad.addColorStop(1, `rgba(255,0,0,0.15)`); // rouge
+  grad.addColorStop(0, `rgba(0,${150*(1-avgScore)},255,0.2)`);
+  grad.addColorStop(0.5, `rgba(255,${150*(1-avgScore)},0,0.15)`);
+  grad.addColorStop(1, `rgba(255,0,0,0.15)`);
 
   ctx.fillStyle = grad;
   ctx.fillRect(0,0,w,h);
 
-  // grille légère
   ctx.strokeStyle = "rgba(0,0,0,0.08)";
   ctx.lineWidth = 1;
   for(let i=0;i<=10;i++){
@@ -78,22 +76,36 @@ function drawPoints(){
   const h = canvas.height;
 
   displayedPoints.forEach((p,i)=>{
-    const radius = 2 + 6*(i/displayedPoints.length); // plus récent = plus gros
+    const radius = 2 + 6*(i/displayedPoints.length);
     const score = Math.sqrt((p.x/100)**2 + (p.y/100)**2 + (p.tci/100)**2 + (p.sri/100)**2);
     ctx.fillStyle = colorFromScore(score);
 
     const x = (p.x/100)*w;
     const y = h - (p.y/100)*h;
 
+    // point principal
     ctx.beginPath();
     ctx.arc(x,y,radius,0,Math.PI*2);
     ctx.fill();
 
-    // léger halo lumineux pour points récents
+    // halo lumineux
     ctx.beginPath();
     ctx.arc(x,y,radius*1.5,0,Math.PI*2);
     ctx.fillStyle = `rgba(255,255,255,${0.1 + 0.2*(i/displayedPoints.length)})`;
     ctx.fill();
+
+    // micro-points aléatoires autour du point
+    for(let m=0;m<MICRO_POINTS;m++){
+      const angle = Math.random()*Math.PI*2;
+      const dist = Math.random()*radius*3;
+      const mx = x + Math.cos(angle)*dist;
+      const my = y + Math.sin(angle)*dist;
+      const mr = Math.random()*1.5;
+      ctx.beginPath();
+      ctx.arc(mx,my,mr,0,Math.PI*2);
+      ctx.fillStyle = `rgba(${Math.floor(255*score)},${Math.floor(255*(1-score))},${Math.floor(255*(1-score))},0.2)`;
+      ctx.fill();
+    }
   });
 }
 
@@ -154,7 +166,8 @@ function renderLegend(){
     <span style="color:orange">●</span> Alerte<br>
     <span style="color:red">●</span> Instable<br>
     Fond : gradient animé selon moyenne du trail<br>
-    Points : récents plus gros et lumineux
+    Points : récents plus gros et lumineux<br>
+    Micro-points : effets artistiques autour
   `;
 }
 
