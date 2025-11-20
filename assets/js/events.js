@@ -1,5 +1,3 @@
-/* assets/js/events.js - Rendu thermique */
-
 let allFrames = [];
 let currentFrame = 0;
 let animating = false;
@@ -10,7 +8,14 @@ const TRAIL_LENGTH = 60;
 const canvas = document.getElementById("stabilityChart");
 const ctx = canvas.getContext("2d");
 
-// gradient entre stable (bleu) et instable (rouge)
+// ------------------- Dégradé dynamique selon score -------------------
+function computeAverageScore(points){
+  if(!points.length) return 0;
+  return points.reduce((acc,p)=>{
+    return acc + Math.sqrt((p.x/100)**2 + (p.y/100)**2 + (p.tci/100)**2 + (p.sri/100)**2);
+  },0)/points.length;
+}
+
 function colorFromScore(score){
   const r = Math.min(255, Math.floor(255*score));
   const g = Math.min(255, Math.floor(255*(1-score)));
@@ -45,17 +50,20 @@ function filterPoints(points, tciMin, tciMax, sriMin, sriMax){
 function drawBackground(){
   const w = canvas.width;
   const h = canvas.height;
-  ctx.clearRect(0,0,w,h);
 
-  // dégradé diagonal du bleu (bas gauche) au rouge (haut droite)
+  // moyenne du trail pour influencer le fond
+  const avgScore = computeAverageScore(displayedPoints);
   const grad = ctx.createLinearGradient(0,h,w,0);
-  grad.addColorStop(0,"rgba(0,150,255,0.1)");
-  grad.addColorStop(1,"rgba(255,0,0,0.1)");
+
+  grad.addColorStop(0, `rgba(0,${150*(1-avgScore)},255,0.2)`); // bleu/vert selon score
+  grad.addColorStop(0.5, `rgba(255,${150*(1-avgScore)},0,0.15)`); // jaune/orange
+  grad.addColorStop(1, `rgba(255,0,0,0.15)`); // rouge
+
   ctx.fillStyle = grad;
   ctx.fillRect(0,0,w,h);
 
   // grille légère
-  ctx.strokeStyle = "rgba(0,0,0,0.1)";
+  ctx.strokeStyle = "rgba(0,0,0,0.08)";
   ctx.lineWidth = 1;
   for(let i=0;i<=10;i++){
     ctx.beginPath();
@@ -70,14 +78,21 @@ function drawPoints(){
   const h = canvas.height;
 
   displayedPoints.forEach((p,i)=>{
-    const radius = 2 + 6*(i/displayedPoints.length);
+    const radius = 2 + 6*(i/displayedPoints.length); // plus récent = plus gros
     const score = Math.sqrt((p.x/100)**2 + (p.y/100)**2 + (p.tci/100)**2 + (p.sri/100)**2);
     ctx.fillStyle = colorFromScore(score);
 
     const x = (p.x/100)*w;
     const y = h - (p.y/100)*h;
+
     ctx.beginPath();
     ctx.arc(x,y,radius,0,Math.PI*2);
+    ctx.fill();
+
+    // léger halo lumineux pour points récents
+    ctx.beginPath();
+    ctx.arc(x,y,radius*1.5,0,Math.PI*2);
+    ctx.fillStyle = `rgba(255,255,255,${0.1 + 0.2*(i/displayedPoints.length)})`;
     ctx.fill();
   });
 }
@@ -114,19 +129,19 @@ function toggleAnimation(){
   else cancelAnimationFrame(animationId);
 }
 
-// ------------------- Filtrage manuel -------------------
-function applyFilters(){
-  currentFrame = 0;
-  displayedPoints = [];
-  nextFrame();
-}
-
 // ------------------- Curseur -------------------
 function timelineChange(){
   currentFrame = parseInt(this.value)||0;
   displayedPoints = allFrames.slice(Math.max(0,currentFrame-TRAIL_LENGTH),currentFrame+1);
   drawBackground();
   drawPoints();
+}
+
+// ------------------- Filtrage manuel -------------------
+function applyFilters(){
+  currentFrame = 0;
+  displayedPoints = [];
+  nextFrame();
 }
 
 // ------------------- Légende -------------------
@@ -138,8 +153,8 @@ function renderLegend(){
     <span style="color:green">●</span> Stable<br>
     <span style="color:orange">●</span> Alerte<br>
     <span style="color:red">●</span> Instable<br>
-    Fond : gradient bleu→rouge<br>
-    Points : récents plus gros
+    Fond : gradient animé selon moyenne du trail<br>
+    Points : récents plus gros et lumineux
   `;
 }
 
