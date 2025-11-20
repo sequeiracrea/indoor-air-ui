@@ -1,12 +1,8 @@
-/* assets/js/events.js - Version immersive + lente + halos subtils */
+/* assets/js/events.js - Version immersive et artistique */
 
-const POINT_MIN_SIZE = 3;      // avant : 4
-const POINT_MAX_SIZE = 10;     // avant : 14
-const HALO_SCALE = 1.4;        // avant : 2
+const POINT_MIN_SIZE = 4;
+const POINT_MAX_SIZE = 14;
 const TRAIL_LENGTH = 60;
-
-const FRAME_SKIP = 3; // ← diminue la vitesse : une frame sur 3
-let frameCounter = 0;
 
 let canvas, ctx;
 let allFrames = [];
@@ -15,14 +11,16 @@ let currentFrame = 0;
 let animating = false;
 let animationId;
 
-// Convertir GAQI/GEI en couleur thermique
+// Convertir GAQI/GEI en couleur thermique RGBA
 function thermalColor(gaqi, gei, alpha = 1) {
   const intensity = Math.min(1, (gaqi + gei) / 200);
   const r = Math.floor(255 * intensity);
   const g = Math.floor(255 * (1 - Math.abs(intensity - 0.5) * 2));
-  return `rgba(${r},${g},50,${alpha})`;
+  const b = 50;
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
+// Charger frames depuis l’API
 async function loadFrames(sec = 1800) {
   try {
     const history = await window.IndoorAPI.fetchHistory(sec);
@@ -42,104 +40,95 @@ async function loadFrames(sec = 1800) {
   }
 }
 
-// Fond thermique artistique
+// Dessin du fond thermique animé
 function drawThermalBackground() {
   const { width, height } = canvas;
   const grd = ctx.createLinearGradient(0, 0, width, height);
 
   const last = displayedPoints[displayedPoints.length - 1];
-  const colorStart = last ? thermalColor(last.x, last.y, 0.15) : "rgba(0,200,0,0.15)";
-  const colorMid   = last ? thermalColor(last.x, last.y, 0.35) : "rgba(255,255,0,0.15)";
-  const colorEnd   = last ? thermalColor(last.x, last.y, 0.55) : "rgba(255,0,0,0.15)";
+  const colorStart = last ? thermalColor(last.x, last.y, 0.3) : 'rgba(0,200,0,0.3)';
+  const colorMid = last ? thermalColor(last.x, last.y, 0.6) : 'rgba(255,255,0,0.3)';
+  const colorEnd = last ? thermalColor(last.x, last.y, 0.9) : 'rgba(255,0,0,0.3)';
 
-  grd.addColorStop(0,   colorStart);
+  grd.addColorStop(0, colorStart);
   grd.addColorStop(0.5, colorMid);
-  grd.addColorStop(1,   colorEnd);
+  grd.addColorStop(1, colorEnd);
 
   ctx.fillStyle = grd;
   ctx.fillRect(0, 0, width, height);
 }
 
-// Points + halo + trail subtils
+// Dessiner points avec trail et halo dynamique
 function drawPoints() {
-  ctx.globalCompositeOperation = "lighter";
-
-  displayedPoints.forEach((p, i) => {
+  ctx.globalCompositeOperation = 'lighter'; // effet lumineux
+  for (let i = 0; i < displayedPoints.length; i++) {
+    const p = displayedPoints[i];
     const ageFactor = (i + 1) / displayedPoints.length;
     const size = POINT_MIN_SIZE + (POINT_MAX_SIZE - POINT_MIN_SIZE) * ageFactor;
 
-    const color = thermalColor(p.x, p.y, 0.5 * ageFactor);
-    const haloRadius = size * HALO_SCALE + ageFactor * 3; // halo réduit
+    const color = thermalColor(p.x, p.y, ageFactor);
+    const haloRadius = size * 2 + ageFactor * 4;
 
     const x = (p.x / 100) * canvas.width;
     const y = canvas.height - (p.y / 100) * canvas.height;
 
-    // Halo
-    const g = ctx.createRadialGradient(x, y, 0, x, y, haloRadius);
-    g.addColorStop(0,   color.replace(/[^,]+(?=\))/, 0.35 * ageFactor));
-    g.addColorStop(0.6, color.replace(/[^,]+(?=\))/, 0.15 * ageFactor));
-    g.addColorStop(1,   color.replace(/[^,]+(?=\))/, 0));
+    // Halo dynamique
+    const gradient = ctx.createRadialGradient(x, y, 0, x, y, haloRadius);
+    gradient.addColorStop(0, color.replace(/[^,]+(?=\))/, 0.6 * ageFactor));
+    gradient.addColorStop(0.5, color.replace(/[^,]+(?=\))/, 0.3 * ageFactor));
+    gradient.addColorStop(1, color.replace(/[^,]+(?=\))/, 0));
 
-    ctx.fillStyle = g;
+    ctx.fillStyle = gradient;
     ctx.beginPath();
     ctx.arc(x, y, haloRadius, 0, 2 * Math.PI);
     ctx.fill();
 
-    // Point
+    // Point principal
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.arc(x, y, size, 0, 2 * Math.PI);
     ctx.fill();
 
-    // Trail subtil
+    // Trail progressif
     if (i > 0) {
       const prev = displayedPoints[i - 1];
       const px = (prev.x / 100) * canvas.width;
       const py = canvas.height - (prev.y / 100) * canvas.height;
-
-      ctx.strokeStyle = thermalColor((p.x + prev.x) / 2, (p.y + prev.y) / 2, 0.12 * ageFactor);
-      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = thermalColor((prev.x + p.x)/2, (prev.y + p.y)/2, 0.2 * ageFactor);
+      ctx.lineWidth = 2;
       ctx.beginPath();
       ctx.moveTo(px, py);
       ctx.lineTo(x, y);
       ctx.stroke();
     }
-  });
-
-  ctx.globalCompositeOperation = "source-over";
+  }
+  ctx.globalCompositeOperation = 'source-over';
 }
 
-// Frame suivante (plus lente)
+// Frame suivante
 function nextFrame() {
   if (!allFrames.length) return;
 
-  frameCounter++;
-  if (frameCounter % FRAME_SKIP !== 0) {
-    if (animating) animationId = requestAnimationFrame(nextFrame);
-    return;
-  }
-
   displayedPoints.push(allFrames[currentFrame]);
   if (displayedPoints.length > TRAIL_LENGTH) displayedPoints.shift();
-
-  // Mise à jour du slider
-  document.getElementById("timeline").value = currentFrame;
 
   drawThermalBackground();
   drawPoints();
 
   currentFrame = (currentFrame + 1) % allFrames.length;
-
   if (animating) animationId = requestAnimationFrame(nextFrame);
 }
 
-// Contrôles
+// Play/Pause
 function toggleAnimation() {
   animating = !animating;
-  document.getElementById("playPauseBtn").textContent = animating ? "Pause" : "Play";
+  const btn = document.getElementById("playPauseBtn");
+  btn.textContent = animating ? "Pause" : "Play";
   if (animating) nextFrame();
+  else cancelAnimationFrame(animationId);
 }
 
+// Curseur timeline
 function updateTimeline() {
   const slider = document.getElementById("timeline");
   currentFrame = parseInt(slider.value);
@@ -148,9 +137,22 @@ function updateTimeline() {
   drawPoints();
 }
 
+// Légende dynamique
+function initLegend() {
+  const legend = document.getElementById("stabilityLegend");
+  legend.innerHTML = `
+    <strong>Légende :</strong><br>
+    Fond : dégradé thermique selon GAQI/GEI<br>
+    Points : halo + couleur selon valeur<br>
+    Taille et luminosité proportionnelles à la récence<br>
+    Trail semi-transparent montre trajectoire
+  `;
+}
+
 // Initialisation
 async function init() {
   canvas = document.getElementById("stabilityChart");
+  if (!canvas) return console.error("Canvas introuvable");
   ctx = canvas.getContext("2d");
 
   allFrames = await loadFrames(1800);
@@ -161,6 +163,8 @@ async function init() {
   slider.addEventListener("input", updateTimeline);
 
   document.getElementById("playPauseBtn").addEventListener("click", toggleAnimation);
+
+  initLegend();
 
   displayedPoints = [];
   nextFrame();
