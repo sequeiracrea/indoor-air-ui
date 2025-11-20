@@ -9,6 +9,7 @@ let currentFrame = 0;
 let animating = false;
 let animationId;
 let displayedPoints = [];
+let heatmapData = []; // pour le fond dynamique
 
 async function loadFramesFromHistory(sec = 1800) {
   try {
@@ -37,37 +38,32 @@ function getPointColor(p) {
   return "0,200,0";
 }
 
-// Dessin du fond interactif (carte thermique)
-function drawHeatmapBackground() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  
-  // Fond noir léger
-  ctx.fillStyle = "rgba(20,20,20,0.2)";
+function updateHeatmap() {
+  // On applique un léger fade sur le fond pour créer un effet fluide
+  ctx.fillStyle = "rgba(20,20,20,0.1)";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  // Pour chaque point affiché, créer un halo coloré diffus
+  // chaque point laisse un halo diffus
   for (let i = 0; i < displayedPoints.length; i++) {
     const p = displayedPoints[i];
     const ageFactor = (i + 1) / displayedPoints.length;
-    const size = POINT_MIN_SIZE + (POINT_MAX_SIZE - POINT_MIN_SIZE) * ageFactor * 3; // plus large pour halo
     const color = getPointColor(p);
-    
+
     const gradient = ctx.createRadialGradient(
       (p.x / 100) * canvas.width,
       canvas.height - (p.y / 100) * canvas.height,
       0,
       (p.x / 100) * canvas.width,
       canvas.height - (p.y / 100) * canvas.height,
-      size * 10
+      50 * ageFactor
     );
-    gradient.addColorStop(0, `rgba(${color},${0.6 + 0.4 * ageFactor})`);
-    gradient.addColorStop(0.2, `rgba(${color},${0.4 * ageFactor})`);
-    gradient.addColorStop(0.6, `rgba(${color},0.1)`);
+    gradient.addColorStop(0, `rgba(${color},${0.6 * ageFactor})`);
+    gradient.addColorStop(0.5, `rgba(${color},${0.2 * ageFactor})`);
     gradient.addColorStop(1, `rgba(${color},0)`);
 
     ctx.fillStyle = gradient;
     ctx.beginPath();
-    ctx.arc((p.x / 100) * canvas.width, canvas.height - (p.y / 100) * canvas.height, size * 10, 0, 2 * Math.PI);
+    ctx.arc((p.x / 100) * canvas.width, canvas.height - (p.y / 100) * canvas.height, 50 * ageFactor, 0, 2 * Math.PI);
     ctx.fill();
   }
 }
@@ -78,7 +74,7 @@ function drawPoints() {
     const ageFactor = (i + 1) / displayedPoints.length;
     const size = POINT_MIN_SIZE + (POINT_MAX_SIZE - POINT_MIN_SIZE) * ageFactor;
     const color = getPointColor(p);
-    
+
     ctx.fillStyle = `rgba(${color},1)`;
     ctx.beginPath();
     ctx.arc((p.x / 100) * canvas.width, canvas.height - (p.y / 100) * canvas.height, size, 0, 2 * Math.PI);
@@ -98,7 +94,7 @@ function nextFrame() {
   displayedPoints.push(...framePoints);
   if (displayedPoints.length > TRAIL_LENGTH) displayedPoints = displayedPoints.slice(-TRAIL_LENGTH);
 
-  drawHeatmapBackground();
+  updateHeatmap();
   drawPoints();
 
   document.getElementById("timeline").value = currentFrame;
@@ -132,7 +128,7 @@ async function init() {
   slider.addEventListener("input", e => {
     currentFrame = parseInt(e.target.value, 10);
     displayedPoints = allFrames.slice(Math.max(0, currentFrame - TRAIL_LENGTH), currentFrame + 1);
-    drawHeatmapBackground();
+    updateHeatmap();
     drawPoints();
   });
 
@@ -146,8 +142,7 @@ async function init() {
     <span style="color:orange;">● Alerte</span> &nbsp;
     <span style="color:red;">● Instable</span><br>
     Taille + couleur = récence / état<br>
-    Halo = influence thermique<br>
-    Fond = carte thermique dynamique
+    Halo = flux thermique dynamique
   `;
 
   nextFrame();
