@@ -1,11 +1,11 @@
-/* assets/js/events.js - Version immersive + lente + halos subtils */
+/* assets/js/events.js - Version fond blanc + grille + halo & trail thermiques */
 
-const POINT_MIN_SIZE = 3;      // avant : 4
-const POINT_MAX_SIZE = 10;     // avant : 14
-const HALO_SCALE = 1.4;        // avant : 2
+const POINT_MIN_SIZE = 3;
+const POINT_MAX_SIZE = 10;
+const HALO_SCALE = 1.4;
 const TRAIL_LENGTH = 60;
 
-const FRAME_SKIP = 3; // ← diminue la vitesse : une frame sur 3
+const FRAME_SKIP = 3; 
 let frameCounter = 0;
 
 let canvas, ctx;
@@ -15,7 +15,7 @@ let currentFrame = 0;
 let animating = false;
 let animationId;
 
-// Convertir GAQI/GEI en couleur thermique
+// Couleur thermique (halo + trail)
 function thermalColor(gaqi, gei, alpha = 1) {
   const intensity = Math.min(1, (gaqi + gei) / 200);
   const r = Math.floor(255 * intensity);
@@ -23,6 +23,7 @@ function thermalColor(gaqi, gei, alpha = 1) {
   return `rgba(${r},${g},50,${alpha})`;
 }
 
+// Charger frames
 async function loadFrames(sec = 1800) {
   try {
     const history = await window.IndoorAPI.fetchHistory(sec);
@@ -36,48 +37,73 @@ async function loadFrames(sec = 1800) {
         tci: idx.TCI || 0
       };
     });
-  } catch (err) {
-    console.error("Erreur historique :", err);
+  } catch {
     return [];
   }
 }
 
-// Fond thermique artistique
-function drawThermalBackground() {
+// Grille blanche + axes
+function drawGrid() {
   const { width, height } = canvas;
-  const grd = ctx.createLinearGradient(0, 0, width, height);
-
-  const last = displayedPoints[displayedPoints.length - 1];
-  const colorStart = last ? thermalColor(last.x, last.y, 0.15) : "rgba(0,200,0,0.15)";
-  const colorMid   = last ? thermalColor(last.x, last.y, 0.35) : "rgba(255,255,0,0.15)";
-  const colorEnd   = last ? thermalColor(last.x, last.y, 0.55) : "rgba(255,0,0,0.15)";
-
-  grd.addColorStop(0,   colorStart);
-  grd.addColorStop(0.5, colorMid);
-  grd.addColorStop(1,   colorEnd);
-
-  ctx.fillStyle = grd;
+  ctx.fillStyle = "white";
   ctx.fillRect(0, 0, width, height);
+
+  ctx.strokeStyle = "rgba(0,0,0,0.07)";
+  ctx.lineWidth = 1;
+
+  const step = 50; // spacing of the grid
+
+  // vertical
+  for (let x = 0; x <= width; x += step) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, height);
+    ctx.stroke();
+  }
+
+  // horizontal
+  for (let y = 0; y <= height; y += step) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(width, y);
+    ctx.stroke();
+  }
+
+  // Axes (plus visibles)
+  ctx.strokeStyle = "rgba(0,0,0,0.25)";
+  ctx.lineWidth = 2;
+
+  // Axe GAQI (x)
+  ctx.beginPath();
+  ctx.moveTo(0, height);
+  ctx.lineTo(width, height);
+  ctx.stroke();
+
+  // Axe GEI (y)
+  ctx.beginPath();
+  ctx.moveTo(0, 0);
+  ctx.lineTo(0, height);
+  ctx.stroke();
 }
 
-// Points + halo + trail subtils
+// Points + halo + trail thermiques
 function drawPoints() {
   ctx.globalCompositeOperation = "lighter";
 
   displayedPoints.forEach((p, i) => {
-    const ageFactor = (i + 1) / displayedPoints.length;
-    const size = POINT_MIN_SIZE + (POINT_MAX_SIZE - POINT_MIN_SIZE) * ageFactor;
+    const age = (i + 1) / displayedPoints.length;
+    const size = POINT_MIN_SIZE + (POINT_MAX_SIZE - POINT_MIN_SIZE) * age;
 
-    const color = thermalColor(p.x, p.y, 0.5 * ageFactor);
-    const haloRadius = size * HALO_SCALE + ageFactor * 3; // halo réduit
+    const color = thermalColor(p.x, p.y, 0.5 * age);
+    const haloRadius = size * HALO_SCALE + age * 3;
 
     const x = (p.x / 100) * canvas.width;
     const y = canvas.height - (p.y / 100) * canvas.height;
 
-    // Halo
+    // ---- HALO ----
     const g = ctx.createRadialGradient(x, y, 0, x, y, haloRadius);
-    g.addColorStop(0,   color.replace(/[^,]+(?=\))/, 0.35 * ageFactor));
-    g.addColorStop(0.6, color.replace(/[^,]+(?=\))/, 0.15 * ageFactor));
+    g.addColorStop(0,   color.replace(/[^,]+(?=\))/, 0.35));
+    g.addColorStop(0.6, color.replace(/[^,]+(?=\))/, 0.12));
     g.addColorStop(1,   color.replace(/[^,]+(?=\))/, 0));
 
     ctx.fillStyle = g;
@@ -85,19 +111,19 @@ function drawPoints() {
     ctx.arc(x, y, haloRadius, 0, 2 * Math.PI);
     ctx.fill();
 
-    // Point
-    ctx.fillStyle = color;
+    // ---- POINT ----
+    ctx.fillStyle = color.replace(/[^,]+(?=\))/, 0.9);
     ctx.beginPath();
     ctx.arc(x, y, size, 0, 2 * Math.PI);
     ctx.fill();
 
-    // Trail subtil
+    // ---- TRAIL ----
     if (i > 0) {
       const prev = displayedPoints[i - 1];
       const px = (prev.x / 100) * canvas.width;
       const py = canvas.height - (prev.y / 100) * canvas.height;
 
-      ctx.strokeStyle = thermalColor((p.x + prev.x) / 2, (p.y + prev.y) / 2, 0.12 * ageFactor);
+      ctx.strokeStyle = thermalColor((p.x + prev.x) / 2, (p.y + prev.y) / 2, 0.18 * age);
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(px, py);
@@ -109,7 +135,7 @@ function drawPoints() {
   ctx.globalCompositeOperation = "source-over";
 }
 
-// Frame suivante (plus lente)
+// Frame suivante (lente)
 function nextFrame() {
   if (!allFrames.length) return;
 
@@ -122,10 +148,11 @@ function nextFrame() {
   displayedPoints.push(allFrames[currentFrame]);
   if (displayedPoints.length > TRAIL_LENGTH) displayedPoints.shift();
 
-  // Mise à jour du slider
+  // update slider
   document.getElementById("timeline").value = currentFrame;
 
-  drawThermalBackground();
+  // redraw
+  drawGrid();
   drawPoints();
 
   currentFrame = (currentFrame + 1) % allFrames.length;
@@ -144,11 +171,10 @@ function updateTimeline() {
   const slider = document.getElementById("timeline");
   currentFrame = parseInt(slider.value);
   displayedPoints = allFrames.slice(Math.max(0, currentFrame - TRAIL_LENGTH), currentFrame + 1);
-  drawThermalBackground();
+  drawGrid();
   drawPoints();
 }
 
-// Initialisation
 async function init() {
   canvas = document.getElementById("stabilityChart");
   ctx = canvas.getContext("2d");
